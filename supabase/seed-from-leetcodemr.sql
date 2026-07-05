@@ -1,0 +1,41 @@
+-- Copy study_plan (+ optional progress) from LeetMastery into LeetEasy.
+-- Run in LeetMastery SQL editor first to export, then paste results into LeetEasy.
+
+-- ?? 1. Export from LeetMastery (run there, copy output) ??????????????????????
+-- SELECT
+--   'INSERT INTO study_plan (user_id, start_date, per_day, question_order, mode, review_start_days, lock_code)'
+--   || ' VALUES (''emmanuel'', '''
+--   || start_date::text || ''', '
+--   || per_day || ', '
+--   || 'ARRAY[' || array_to_string(question_order, ',') || '], '
+--   || '''' || COALESCE(mode, 'strict') || ''', '
+--   || COALESCE(review_start_days, 14) || ', '
+--   || '''' || COALESCE(lock_code, '') || ''');'
+-- FROM study_plan WHERE user_id = 'emmanuel';
+
+-- ?? 2. Or manual insert (edit dates + question IDs) ???????????????????????????
+-- INSERT INTO study_plan (user_id, start_date, per_day, question_order, mode, review_start_days)
+-- VALUES (
+--   'emmanuel',
+--   '2026-01-01',
+--   2,
+--   ARRAY[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+--   'strict',
+--   14
+-- )
+-- ON CONFLICT (user_id) DO UPDATE SET
+--   start_date = EXCLUDED.start_date,
+--   per_day = EXCLUDED.per_day,
+--   question_order = EXCLUDED.question_order,
+--   mode = EXCLUDED.mode,
+--   review_start_days = EXCLUDED.review_start_days;
+
+-- ?? 3. Optional: copy review schedule only (not daily reps) ?????????????????
+-- INSERT INTO progress (user_id, question_id, solved, review_count, next_review, last_reviewed)
+-- SELECT user_id, question_id, solved, review_count, next_review, last_reviewed
+-- FROM progress
+-- WHERE user_id = 'emmanuel' AND solved = true AND next_review IS NOT NULL
+-- ON CONFLICT (user_id, question_id) DO UPDATE SET
+--   review_count = EXCLUDED.review_count,
+--   next_review = EXCLUDED.next_review,
+--   last_reviewed = EXCLUDED.last_reviewed;

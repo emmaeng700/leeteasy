@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import QuestionCard from '@/components/QuestionCard'
 import { PageShell } from '@/components/Navbar'
 import { withTimeout } from '@/lib/withTimeout'
+import { formatSupabaseLoadError } from '@/lib/formatLoadError'
 import type { DailyPlanMeta, DailyQueueItem } from '@/lib/dailyQueue'
 import type { GrindQuestion } from '@/lib/grindQuestions'
 import { useLcSync } from '@/hooks/useLcSync'
@@ -18,10 +19,13 @@ export default function DailyPage() {
   const [questions, setQuestions] = useState<GrindQuestion[]>([])
   const [reviewIds, setReviewIds] = useState<number[]>([])
   const [markingId, setMarkingId] = useState<number | null>(null)
+  const [noPlan, setNoPlan] = useState(false)
+  const [creatingPlan, setCreatingPlan] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
     setLoadError(null)
+    setNoPlan(false)
     try {
       const [
         { loadGrindQuestionsBundle },
@@ -56,10 +60,10 @@ export default function DailyPage() {
       } else {
         setQueue([])
         setMeta(null)
-        if (!plan) setLoadError('No study plan in Supabase. Set one up in LeetMastery first.')
+        if (!plan) setNoPlan(true)
       }
     } catch (e) {
-      setLoadError(String(e))
+      setLoadError(formatSupabaseLoadError(e))
     } finally {
       setLoading(false)
     }
@@ -86,6 +90,26 @@ export default function DailyPage() {
   useEffect(() => {
     if (lastError) toast.error(lastError)
   }, [lastError])
+
+  const createPlan = async () => {
+    setCreatingPlan(true)
+    try {
+      const { createDefaultStudyPlan, planSummary } = await import('@/lib/createDefaultStudyPlan')
+      const qs = questions.length ? questions : await import('@/lib/grindQuestions').then(m => m.loadGrindQuestionsBundle())
+      const result = await createDefaultStudyPlan(qs, { perDay: 2, repsPerQ: 2 })
+      if (!result.ok) {
+        toast.error(result.error ?? 'Failed to create plan')
+        return
+      }
+      const { days } = planSummary(2, qs.length)
+      toast.success(`Study plan created - ${days} days, 2 questions/day`)
+      void load()
+    } catch (e) {
+      toast.error(String(e))
+    } finally {
+      setCreatingPlan(false)
+    }
+  }
 
   const markDone = async (item: DailyQueueItem) => {
     setMarkingId(item.question.id)
@@ -169,6 +193,29 @@ export default function DailyPage() {
       {!loading && loadError && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-800">
           {loadError}
+        </div>
+      )}
+
+      {!loading && noPlan && !loadError && (
+        <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-6">
+          <p className="font-bold text-indigo-900">Set up your daily plan</p>
+          <p className="mt-2 text-sm text-indigo-800/90 leading-relaxed">
+            Same structure as LeetMastery: 727 questions in grind order, 2 per day, strict mode with catch-up, 2 reps each.
+            You solve on LeetCode - tap a question to open it there.
+          </p>
+          <ul className="mt-3 text-xs text-indigo-700/80 space-y-1 list-disc pl-4">
+            <li>Priority rounds (High, Mid, Low), Easy then Medium then Hard</li>
+            <li>Missed days roll forward as catch-up</li>
+            <li>Reviews unlock after you finish daily block</li>
+          </ul>
+          <button
+            type="button"
+            onClick={() => void createPlan()}
+            disabled={creatingPlan}
+            className="mt-4 w-full py-3 rounded-xl bg-indigo-600 text-white font-bold text-sm disabled:opacity-50"
+          >
+            {creatingPlan ? 'Creating...' : 'Create study plan (start today)'}
+          </button>
         </div>
       )}
 

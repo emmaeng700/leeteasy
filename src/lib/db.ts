@@ -743,7 +743,7 @@ export async function getStudyPlan() {
     .from('study_plan')
     .select('*')
     .eq('user_id', USER_ID)
-    .single()
+    .maybeSingle()
   if (error && error.code !== 'PGRST116') console.error('[db] getStudyPlan:', error.message)
   return data
 }

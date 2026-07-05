@@ -35,6 +35,7 @@ export default function SettingsPage() {
           setConnected(true)
         }
       })
+      .catch(() => { /* optional backup */ })
       .finally(() => setLoading(false))
   }, [])
 
@@ -56,7 +57,7 @@ export default function SettingsPage() {
       })
       if (!res.ok) throw new Error('Save failed')
       setConnected(true)
-      toast.success('Session saved - sync will work')
+      toast.success('Session saved - Sync can detect ACs')
     } catch (e) {
       toast.error(String(e))
     } finally {
@@ -76,14 +77,21 @@ export default function SettingsPage() {
 
   return (
     <PageShell title="Settings">
+      <div className="rounded-2xl border border-zinc-200 bg-white p-4 mb-4">
+        <p className="text-sm font-semibold text-zinc-900">You solve on LeetCode</p>
+        <p className="mt-2 text-xs text-zinc-600 leading-relaxed">
+          Daily and Reviews work without anything here — open a question in LeetCode, then tap <strong>Mark done</strong> when you are finished.
+        </p>
+      </div>
+
       <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4 mb-4">
         <div className="flex items-center gap-2 text-indigo-800 font-semibold text-sm">
           <Key size={16} />
-          LeetCode session
+          Optional: auto-sync
           {connected && <Check size={14} className="text-emerald-600" />}
         </div>
         <p className="mt-2 text-xs text-indigo-700/80 leading-relaxed">
-          Paste your cookie from leetcode.com DevTools (same as LeetMastery). Used to sync AC submissions into Daily and Reviews.
+          Paste your leetcode.com session cookie once if you want <strong>Sync</strong> to detect Accepted submissions automatically (instead of Mark done).
         </p>
       </div>
 
@@ -112,10 +120,6 @@ export default function SettingsPage() {
       >
         {saving ? 'Saving...' : 'Save session'}
       </button>
-
-      <p className="mt-6 text-xs text-zinc-400 leading-relaxed">
-        Shares the same Supabase database as LeetMastery. Your study plan, daily progress, and review schedule stay in sync.
-      </p>
     </PageShell>
   )
 }

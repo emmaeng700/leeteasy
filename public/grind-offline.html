@@ -3,13 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
-  <title>Grind (Offline) - LeetMastery</title>
+  <title>Grind - LeetEasy</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; background: #11111b; color: #cdd6f4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
     .app { display: flex; flex-direction: column; height: 100dvh; max-width: 900px; margin: 0 auto; }
     .header-row {
       display: flex; align-items: center; gap: 0.5rem; width: 100%;
+    }
+    .home-link {
+      text-decoration: none; font-weight: 700; font-size: 0.75rem;
+      padding: 0.4rem 0.55rem; flex-shrink: 0;
     }
     header {
       padding: 0.5rem 0.65rem; background: #181825; border-bottom: 1px solid #313244;
@@ -308,16 +312,17 @@
   <div class="app">
     <div id="offline-banner" class="offline-banner">Offline ? saved on this device only.</div>
     <div id="online-banner" class="online-banner">
-      <p><strong>You&apos;re back online.</strong> Drafts can sync. Tap below to visit other pages in the app.</p>
+      <p><strong>You&apos;re back online.</strong> Drafts stay on this device. Use the app button to leave Grind.</p>
       <div class="online-banner-actions">
-        <a id="link-full-grind" class="chip-btn primary" href="/grind">Open full Grind</a>
+        <a class="chip-btn primary" href="/">LeetEasy home</a>
         <a class="chip-btn" href="/daily">Daily</a>
-        <a class="chip-btn" href="/questions">Questions</a>
+        <a class="chip-btn" href="/leetcode">LeetCode</a>
       </div>
     </div>
     <header>
       <div class="header-row">
-        <h1>Grind (offline)</h1>
+        <a href="/" class="chip-btn home-link" aria-label="Back to LeetEasy">&#8592; App</a>
+        <h1>Grind</h1>
         <div class="langs">
           <button type="button" id="btn-py" class="on-py" aria-label="Python">Py</button>
           <button type="button" id="btn-cpp" aria-label="C++">C++</button>

@@ -6,6 +6,7 @@ import { Calendar, Brain, RefreshCw, Settings, Zap, Code2 } from 'lucide-react'
 import { PageShell } from '@/components/Navbar'
 
 import { withTimeout } from '@/lib/withTimeout'
+import { formatSupabaseLoadError } from '@/lib/formatLoadError'
 
 export default function HomePage() {
   const [loading, setLoading] = useState(true)
@@ -68,7 +69,7 @@ export default function HomePage() {
       setReviewDue(due.length)
       setLcSolved(readLcListSync()?.solvedIds.length ?? 0)
     } catch (e) {
-      setLoadError(String(e))
+      setLoadError(formatSupabaseLoadError(e))
     } finally {
       setLoading(false)
     }
