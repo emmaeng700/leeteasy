@@ -1,7 +1,7 @@
 import type { GrindQuestion } from './grindQuestions'
 import { todayISOChicago } from './studyPlanDay'
 
-/** Grind bundle order matches LeetMastery studyOrder (priority rounds, Easy to Hard). */
+/** 727-question grind bundle order (same rounds as LeetMastery studyOrder). */
 export function grindStudyOrder(questions: GrindQuestion[]): number[] {
   return questions.map(q => q.id)
 }
@@ -10,19 +10,20 @@ export type DefaultPlanOpts = {
   perDay?: number
   repsPerQ?: number
   reviewStartDays?: number
+  revisionCap?: number
   mode?: 'strict' | 'random'
   startDate?: string
 }
 
-/** Same plan shape as LeetMastery Daily setup, without in-app editor. */
 export async function createDefaultStudyPlan(
   questions: GrindQuestion[],
   opts: DefaultPlanOpts = {},
 ): Promise<{ ok: boolean; error?: string }> {
-  const { saveStudyPlan } = await import('./db')
+  const { saveStudyPlan, saveUserProfile } = await import('./db')
   const perDay = opts.perDay ?? 2
   const repsPerQ = opts.repsPerQ ?? 2
   const reviewStartDays = opts.reviewStartDays ?? 14
+  const revisionCap = opts.revisionCap ?? 3
   const mode = opts.mode ?? 'strict'
   const startDate = opts.startDate ?? todayISOChicago()
 
@@ -44,6 +45,8 @@ export async function createDefaultStudyPlan(
     return { ok: false, error: 'Could not save plan. Check Supabase connection.' }
   }
 
+  await saveUserProfile({ revisionCap, repsPerQ, reviewStartDays })
+
   if (typeof window !== 'undefined') {
     try {
       localStorage.setItem('lm_reps_per_q', String(repsPerQ))
@@ -57,4 +60,17 @@ export async function createDefaultStudyPlan(
 export function planSummary(perDay: number, totalQuestions: number) {
   const days = Math.ceil(totalQuestions / perDay)
   return { days, totalQuestions }
+}
+
+/** Create plan if missing; returns normalized plan row or null. */
+export async function ensureStudyPlan(
+  questions: GrindQuestion[],
+): Promise<{ created: boolean; error?: string }> {
+  const { getStudyPlan } = await import('./db')
+  const { normalizeStudyPlanRow } = await import('./streakGoals')
+  const existing = normalizeStudyPlanRow(await getStudyPlan())
+  if (existing) return { created: false }
+  const result = await createDefaultStudyPlan(questions)
+  if (!result.ok) return { created: false, error: result.error }
+  return { created: true }
 }

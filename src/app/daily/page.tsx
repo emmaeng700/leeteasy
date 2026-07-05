@@ -47,8 +47,22 @@ export default function DailyPage() {
       ])
 
       setQuestions(qs)
+
+      let plan = normalizeStudyPlanRow(planRaw)
+      if (!plan && qs.length > 0) {
+        const { ensureStudyPlan } = await import('@/lib/createDefaultStudyPlan')
+        const ensured = await ensureStudyPlan(qs)
+        if (ensured.created) {
+          toast.success('Daily plan created - Day 1 starts today')
+          const fresh = await getStudyPlan()
+          plan = normalizeStudyPlanRow(fresh)
+        } else if (ensured.error) {
+          setLoadError(ensured.error)
+          return
+        }
+      }
+
       setReviewIds(due.map(d => d.id))
-      const plan = normalizeStudyPlanRow(planRaw)
       if (plan && progress) {
         const reps = repsPerQuestion()
         const { items, meta: m } = buildDailyQueue(plan, qs, progress, reps, {
@@ -200,8 +214,8 @@ export default function DailyPage() {
         <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-6">
           <p className="font-bold text-indigo-900">Set up your daily plan</p>
           <p className="mt-2 text-sm text-indigo-800/90 leading-relaxed">
-            Same structure as LeetMastery: 727 questions in grind order, 2 per day, strict mode with catch-up, 2 reps each.
-            You solve on LeetCode - tap a question to open it there.
+            727 questions in grind order, 2 per day, strict mode with catch-up, 2 reps each.
+            Solve on LeetCode - tap a question to open it there.
           </p>
           <ul className="mt-3 text-xs text-indigo-700/80 space-y-1 list-disc pl-4">
             <li>Priority rounds (High, Mid, Low), Easy then Medium then Hard</li>
