@@ -1,0 +1,1539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
+  <title>Grind (Offline) - LeetMastery</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: #11111b; color: #cdd6f4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    .app { display: flex; flex-direction: column; height: 100dvh; max-width: 900px; margin: 0 auto; }
+    .header-row {
+      display: flex; align-items: center; gap: 0.5rem; width: 100%;
+    }
+    header {
+      padding: 0.5rem 0.65rem; background: #181825; border-bottom: 1px solid #313244;
+      display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center; flex-shrink: 0;
+    }
+    header h1 { font-size: 0.85rem; font-weight: 700; color: #cdd6f4; flex: 1; min-width: 0; }
+    header .sub { font-size: 0.6rem; color: #6c7086; width: 100%; }
+    .search {
+      padding: 0.45rem 0.6rem; border-radius: 0.5rem; border: 1px solid #313244;
+      background: #1e1e2e; color: #cdd6f4; font-size: 16px;
+    }
+    .search-row { display: flex; gap: 0.35rem; width: 100%; align-items: center; }
+    .search-row .search { flex: 1; width: auto; min-width: 0; }
+    .nav-btn { padding: 0.45rem 0.55rem; flex-shrink: 0; font-size: 1rem; line-height: 1; min-width: 2rem; }
+    .nav-btn:disabled { opacity: 0.35; cursor: default; }
+    .nav-count { font-size: 0.6rem; color: #6c7086; width: 100%; text-align: center; margin-top: -0.15rem; }
+    .langs { display: flex; gap: 0.25rem; }
+    .langs button, .chip-btn {
+      border: none; border-radius: 0.4rem; padding: 0.35rem 0.65rem; font-size: 0.7rem; font-weight: 600;
+      background: #313244; color: #a6adc8; cursor: pointer;
+    }
+    .langs button.on-py { background: #2563eb; color: #fff; }
+    .langs button.on-cpp { background: #7c3aed; color: #fff; }
+    .chip-btn { background: #1e1e2e; border: 1px solid #45475a; color: #cdd6f4; }
+    .chip-btn.on { background: #45475a; color: #fff; }
+    .body { display: flex; flex: 1; min-height: 0; position: relative; }
+    .list-wrap {
+      width: 38%; max-width: 220px; border-right: 1px solid #313244;
+      background: #181825; flex-shrink: 0; display: flex; flex-direction: column; min-height: 0;
+    }
+    .list-head {
+      padding: 0.35rem 0.5rem; font-size: 0.6rem; color: #6c7086;
+      border-bottom: 1px solid #313244; flex-shrink: 0;
+    }
+    .list { overflow-y: auto; flex: 1; min-height: 0; }
+    .q {
+      display: block; width: 100%; text-align: left; border: none; border-bottom: 1px solid #313244;
+      background: transparent; color: #cdd6f4; padding: 0.45rem 0.5rem; cursor: pointer;
+    }
+    .q.on { background: #1e1e2e; }
+    .q-id { font-size: 0.6rem; color: #6c7086; font-family: monospace; }
+    .q-title { font-size: 0.68rem; line-height: 1.3; margin-top: 0.1rem; }
+    .list-divider-set {
+      padding: 0.4rem 0.5rem; font-size: 0.58rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.04em; color: #89b4fa; background: #1e1e2e;
+      border-bottom: 1px solid #313244; position: sticky; top: 0; z-index: 2;
+    }
+    .list-divider-sec {
+      padding: 0.35rem 0.5rem; font-size: 0.55rem; font-weight: 600; color: #6c7086;
+      background: #181825; border-bottom: 1px solid #313244; position: sticky; top: 0; z-index: 1;
+    }
+    .editor { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; background: #1e1e2e; overflow: hidden; }
+    .editor-stack {
+      flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
+    }
+    .editor-code-pane {
+      flex: 1 1 0%; min-height: 0; overflow: hidden; position: relative;
+    }
+    .meta {
+      padding: 0.35rem 0.5rem; font-size: 0.65rem; color: #a6adc8; background: #181825;
+      border-bottom: 1px solid #313244; flex-shrink: 0;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .meta span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .practice-cm-wrap {
+      position: absolute; inset: 0; display: flex; flex-direction: column; overflow: hidden;
+      --indent-marker-bg-color: rgba(120, 140, 190, 0.35);
+      --indent-marker-active-bg-color: rgba(150, 175, 255, 0.55);
+    }
+    #editor-host, #editor-host-fs {
+      flex: 1 1 0%; min-height: 0; width: 100%; height: 100%; overflow: hidden;
+    }
+    .practice-cm-wrap .cm-editor {
+      height: 100% !important;
+      max-height: 100% !important;
+      display: flex !important;
+      flex-direction: column !important;
+      overflow: hidden !important;
+    }
+    .practice-fs-portal {
+      --indent-marker-bg-color: rgba(120, 140, 190, 0.35);
+      --indent-marker-active-bg-color: rgba(150, 175, 255, 0.55);
+    }
+    .practice-cm-wrap .cm-editor,
+    .practice-cm-wrap .cm-content,
+    .practice-cm-wrap .cm-line,
+    .practice-fs-portal .cm-editor,
+    .practice-fs-portal .cm-content,
+    .practice-fs-portal .cm-line {
+      font-size: 9px !important;
+      line-height: 1.45 !important;
+    }
+    .practice-cm-wrap .cm-scroller,
+    .practice-fs-portal .cm-scroller {
+      flex: 1 1 0% !important;
+      min-height: 0 !important;
+      overflow-x: hidden !important;
+      overflow-y: auto !important;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+    }
+    .practice-cm-wrap .cm-content,
+    .practice-cm-wrap .cm-line,
+    .practice-fs-portal .cm-content,
+    .practice-fs-portal .cm-line {
+      white-space: pre-wrap !important;
+      overflow-wrap: anywhere !important;
+      word-break: break-word !important;
+    }
+    .cm-gutters { background-color: transparent !important; border-right: 1px solid rgba(255,255,255,0.06) !important; }
+    .editor-footer {
+      display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+      padding: 0.4rem 0.55rem; background: #181825; border-top: 1px solid #313244;
+      flex-shrink: 0;
+    }
+    .editor-hint { font-size: 0.58rem; color: #6c7086; }
+    .editor-footer-left { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; min-width: 0; flex: 1; }
+    .grind-session-chip {
+      font-size: 0.58rem; color: #bac2de; background: rgba(49, 50, 68, 0.9);
+      border: 1px solid #585b70; border-radius: 999px; padding: 0.12rem 0.45rem;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 11rem;
+    }
+    .grind-session-chip.hidden { display: none; }
+    .editor-footer .chip-btn { font-size: 0.65rem; white-space: nowrap; }
+    .editor-footer-actions { display: flex; align-items: center; gap: 0.35rem; flex-shrink: 0; }
+    .editor-footer-actions .chip-btn.copied { color: #a6e3a1; border-color: #6c7086; }
+    .desc-card {
+      flex: 0 0 auto; height: clamp(6.5rem, 26vh, 11rem);
+      margin: 0.25rem 0.35rem 0.3rem; background: #181825;
+      border: 1px solid #313244; border-radius: 0.5rem; overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+    .desc-card-head {
+      padding: 0.35rem 0.5rem; font-size: 0.62rem; font-weight: 700; color: #cdd6f4;
+      background: #11111b; border-bottom: 1px solid #313244;
+      display: flex; align-items: center; justify-content: space-between; gap: 0.35rem;
+    }
+    .desc-card-body {
+      flex: 1; min-height: 0; padding: 0.45rem 0.55rem; overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      font-size: 0.68rem; line-height: 1.55; color: #cdd6f4;
+    }
+    .desc-card-body p { margin: 0.35rem 0; }
+    .desc-card-body ul, .desc-card-body ol { padding-left: 1.1rem; margin: 0.35rem 0; }
+    .desc-card-body img {
+      max-width: 100% !important; height: auto !important; width: auto !important;
+      display: block; margin: 0.45rem 0; border-radius: 0.35rem; border: 1px solid rgba(255,255,255,0.1);
+    }
+    .desc-card-body pre {
+      background: #1e1e2e; border: 1px solid #45475a; border-radius: 0.35rem;
+      padding: 0.45rem; overflow-x: auto; font-size: 0.62rem; margin: 0.35rem 0;
+    }
+    .desc-card-body code { background: #313244; color: #cba6f7; padding: 0 0.2rem; border-radius: 0.2rem; }
+    .desc-empty { color: #6c7086; font-style: italic; }
+    footer {
+      padding: 0.35rem 0.6rem; font-size: 0.6rem; color: #6c7086; background: #181825;
+      border-top: 1px solid #313244; flex-shrink: 0;
+    }
+    .online-banner {
+      display: none; padding: 0.55rem 0.65rem; background: #16352a; border-bottom: 1px solid #2d6a4f;
+      flex-shrink: 0;
+    }
+    .online-banner.show { display: block; }
+    .online-banner p { font-size: 0.72rem; color: #a7f3d0; line-height: 1.4; margin-bottom: 0.45rem; }
+    .online-banner strong { color: #ecfdf5; }
+    .online-banner-actions { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+    .online-banner-actions a { text-decoration: none; }
+    .online-banner-actions .primary { background: #059669; border-color: #059669; color: #fff; }
+    .offline-banner {
+      padding: 0.4rem 0.65rem; background: #3d2c1a; border-bottom: 1px solid #92400e;
+      font-size: 0.65rem; color: #fcd34d; flex-shrink: 0;
+    }
+    .offline-banner.hidden { display: none; }
+    .list-backdrop {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 40;
+    }
+    .practice-fs-portal {
+      position: fixed; left: 0; right: 0; z-index: 9999; display: none; flex-direction: column;
+      background: #1e1e2e; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
+    }
+    .practice-fs-portal.open { display: flex; }
+    .fs-bar {
+      display: flex; align-items: center; gap: 0.5rem; padding: 0.45rem 0.6rem;
+      background: #181825; border-bottom: 1px solid #313244; flex-shrink: 0;
+    }
+    .fs-bar span { flex: 1; font-size: 0.65rem; color: #a6adc8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .fs-editor { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
+    .mobile-code-cta { display: none; }
+    .mob-editor-inline { display: flex; }
+    .mob-only { display: none; }
+    @media (max-width: 767px) {
+      html, body {
+        overflow-x: hidden;
+        overscroll-behavior: none;
+      }
+      .mob-only { display: inline-flex; }
+      header .sub { display: none; }
+      .app { max-width: none; height: 100dvh; height: 100svh; }
+      .chip-btn, .nav-btn, .langs button {
+        min-height: 44px;
+        min-width: 44px;
+        padding: 0.5rem 0.65rem;
+      }
+      .search { font-size: 16px; min-height: 44px; }
+      button:focus-visible, .search:focus-visible, .q:focus-visible {
+        outline: 2px solid #89b4fa;
+        outline-offset: 2px;
+      }
+      .list-wrap {
+        display: none; position: fixed; left: 0; right: 0; bottom: 0;
+        width: 100%; max-width: none; max-height: 55dvh; z-index: 50;
+        border-right: none; border-top: 1px solid #313244; border-radius: 1rem 1rem 0 0;
+        box-shadow: 0 -8px 32px rgba(0,0,0,0.35);
+      }
+      .list-wrap.open { display: flex; }
+      .list-wrap.open + .list-backdrop,
+      .list-backdrop.open { display: block; }
+      .editor { width: 100%; }
+      /* Mobile split: description first, code only in fullscreen */
+      .editor-stack {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+      .editor-code-pane {
+        position: relative;
+        flex: 0 0 auto;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .mob-editor-inline { display: none !important; }
+      .mobile-code-cta {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.55rem;
+        padding: 0.85rem 0.75rem;
+        margin: 0.25rem 0.35rem 0;
+        background: #181825;
+        border: 1px solid #313244;
+        border-radius: 0.5rem;
+        text-align: center;
+      }
+      .mobile-code-cta-text {
+        font-size: 0.68rem;
+        color: #a6adc8;
+        line-height: 1.45;
+      }
+      .mobile-code-cta .chip-btn {
+        background: #2563eb;
+        color: #fff;
+        border-color: #2563eb;
+        font-size: 0.75rem;
+        padding: 0.55rem 1rem;
+      }
+      .desc-card {
+        flex: 1 1 0%;
+        height: auto;
+        min-height: 10rem;
+        max-height: none;
+        margin: 0 0.35rem 0.25rem;
+      }
+      .desc-card.collapsed { flex: 0 0 auto; min-height: 0; }
+      .desc-card.collapsed .desc-card-body { display: none; }
+      .desc-toggle {
+        border: none; background: transparent; color: #89b4fa;
+        font-size: 0.58rem; font-weight: 600; padding: 0.2rem 0.35rem;
+        min-height: 44px; min-width: 44px;
+      }
+      body.fs-open { overflow: hidden; }
+      body.fs-open .app { visibility: hidden; }
+      .practice-fs-portal.open {
+        display: flex;
+        top: 0;
+        bottom: 0;
+        height: 100dvh;
+        height: 100svh;
+        max-height: 100dvh;
+        max-height: 100svh;
+      }
+      .practice-fs-portal .practice-cm-wrap,
+      .practice-fs-portal .fs-editor {
+        position: relative;
+        inset: auto;
+        flex: 1;
+        min-height: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div id="offline-banner" class="offline-banner">Offline ? saved on this device only.</div>
+    <div id="online-banner" class="online-banner">
+      <p><strong>You&apos;re back online.</strong> Drafts can sync. Tap below to visit other pages in the app.</p>
+      <div class="online-banner-actions">
+        <a id="link-full-grind" class="chip-btn primary" href="/grind">Open full Grind</a>
+        <a class="chip-btn" href="/daily">Daily</a>
+        <a class="chip-btn" href="/questions">Questions</a>
+      </div>
+    </div>
+    <header>
+      <div class="header-row">
+        <h1>Grind (offline)</h1>
+        <div class="langs">
+          <button type="button" id="btn-py" class="on-py" aria-label="Python">Py</button>
+          <button type="button" id="btn-cpp" aria-label="C++">C++</button>
+        </div>
+        <button type="button" class="chip-btn mob-only" id="btn-list" aria-label="Open question list">List</button>
+      </div>
+      <div class="search-row">
+        <button type="button" class="chip-btn nav-btn" id="btn-prev" aria-label="Previous question">&#8249;</button>
+        <input class="search" id="search" type="search" placeholder="Search #id or title..." autocomplete="off" />
+        <button type="button" class="chip-btn nav-btn" id="btn-next" aria-label="Next question">&#8250;</button>
+      </div>
+      <span class="nav-count" id="nav-count"></span>
+      <p class="sub">Write from memory. Tab indents. Syncs when back online.</p>
+    </header>
+    <div class="body" id="body">
+      <div class="err" id="loading">Loading questions...</div>
+    </div>
+    <footer id="status">Offline mode</footer>
+    <span id="offline-version" hidden>v24</span>
+  </div>
+  <div class="practice-fs-portal" id="fs-portal">
+    <div class="fs-bar">
+      <span id="fs-meta"></span>
+      <div class="langs">
+        <button type="button" id="fs-btn-py" class="on-py">Py</button>
+        <button type="button" id="fs-btn-cpp">C++</button>
+      </div>
+      <button type="button" class="chip-btn" id="btn-fs-close" aria-label="Close full screen editor">Close</button>
+    </div>
+    <div class="fs-editor practice-cm-wrap"><div id="editor-host-fs"></div></div>
+    <div class="editor-footer">
+      <div class="editor-footer-left">
+        <span class="editor-hint">no submit - write from memory</span>
+        <span class="grind-session-chip hidden" id="grind-session-chip-fs"></span>
+      </div>
+      <div class="editor-footer-actions">
+        <button type="button" class="chip-btn" id="btn-copy-fs" aria-label="Copy all code">Copy</button>
+        <button type="button" class="chip-btn" id="btn-reset-fs">Reset to starter</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    var questions = []
+    var descriptions = {}
+    var OFFLINE_VERSION = 'v24'
+    var SW_CACHE = 'lm-v26'
+    var midnightTimer = null
+    var DESC_IMG_CACHE_KEY = 'lm_desc_images_cached_v1'
+    var filtered = []
+    var selectedId = 0
+    var lang = 'python3'
+    var saveTimer = null
+    var editorHandle = null
+    var editorHostId = 'editor-host'
+    var listOpen = false
+    var editorExpanded = false
+    var wasOffline = !navigator.onLine
+    var copyFlashTimer = null
+
+    function flashCopyButton(btn) {
+      if (!btn) return
+      btn.textContent = 'Copied!'
+      btn.classList.add('copied')
+      if (copyFlashTimer) clearTimeout(copyFlashTimer)
+      copyFlashTimer = setTimeout(function() {
+        btn.textContent = 'Copy'
+        btn.classList.remove('copied')
+      }, 2000)
+    }
+
+    function fallbackCopyText(text) {
+      var ta = document.createElement('textarea')
+      ta.value = text
+      ta.setAttribute('readonly', '')
+      ta.style.position = 'fixed'
+      ta.style.left = '-9999px'
+      document.body.appendChild(ta)
+      ta.select()
+      try { document.execCommand('copy') } catch (e) {}
+      document.body.removeChild(ta)
+    }
+
+    function copyEditorCode(btn) {
+      if (!editorHandle) return
+      var text = editorHandle.getDoc()
+      if (!text) return
+      var done = function() { flashCopyButton(btn) }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(function() {
+          fallbackCopyText(text)
+          done()
+        })
+      } else {
+        fallbackCopyText(text)
+        done()
+      }
+    }
+
+    function updateConnectivityUI() {
+      var online = navigator.onLine
+      var offlineBanner = document.getElementById('offline-banner')
+      var onlineBanner = document.getElementById('online-banner')
+      var status = document.getElementById('status')
+      var grindLink = document.getElementById('link-full-grind')
+      if (offlineBanner) offlineBanner.classList.toggle('hidden', online)
+      if (onlineBanner) {
+        if (online && wasOffline) onlineBanner.classList.add('show')
+        if (!online) onlineBanner.classList.remove('show')
+      }
+      if (grindLink && selectedId) grindLink.href = '/grind?id=' + selectedId
+      if (online && wasOffline && editorHandle && selectedId) {
+        var stamped = applyGrindStamp(selectedId, editorHandle.getDoc())
+        if (stamped !== editorHandle.getDoc()) {
+          editorHandle.setDoc(stamped)
+          try { localStorage.setItem(draftKey(selectedId), stamped) } catch (e) {}
+        }
+      }
+      if (status) {
+        status.textContent = online
+          ? (wasOffline ? 'Back online - tap links above to visit other pages' : questions.length + ' questions')
+          : 'Offline mode - saved locally'
+      }
+      if (!online) wasOffline = true
+    }
+    function refreshEditorStampIfNewDay() {
+      if (!editorHandle || !selectedId) return
+      var q = currentQuestion()
+      if (!q) return
+      var starter = starterFor(q)
+      var piped = runGrindCodePipeline(q.id, editorHandle.getDoc(), starter, q.interviewApproach, false)
+      if (piped.code !== editorHandle.getDoc()) {
+        editorHandle.setDoc(piped.code)
+        try { localStorage.setItem(draftKey(q.id), piped.code) } catch (e) {}
+      }
+      updateSessionChip(piped.code, q.id)
+    }
+
+    function scheduleMidnightRefresh() {
+      if (midnightTimer) clearTimeout(midnightTimer)
+      var now = new Date()
+      var next = new Date(now)
+      next.setHours(24, 0, 0, 0)
+      var delay = Math.max(1000, next.getTime() - now.getTime())
+      midnightTimer = setTimeout(function() {
+        refreshEditorStampIfNewDay()
+        scheduleMidnightRefresh()
+      }, delay)
+    }
+
+    window.addEventListener('online', updateConnectivityUI)
+    window.addEventListener('offline', updateConnectivityUI)
+    document.addEventListener('visibilitychange', function() {
+      if (document.visibilityState === 'visible') refreshEditorStampIfNewDay()
+    })
+    window.addEventListener('focus', refreshEditorStampIfNewDay)
+    scheduleMidnightRefresh()
+
+    function draftKey(id) { return 'lm_grind_' + id + '_' + lang }
+    function starterKey(id) { return 'lm_grind_starter_' + id + '_' + lang }
+    function startedKey(id) { return 'lm_grind_started_' + id + '_' + lang }
+    function dayKey(id) { return 'lm_grind_day_' + id + '_' + lang }
+
+    function localCalendarDayKey(d) {
+      d = d || new Date()
+      var y = d.getFullYear()
+      var m = String(d.getMonth() + 1)
+      if (m.length < 2) m = '0' + m
+      var day = String(d.getDate())
+      if (day.length < 2) day = '0' + day
+      return y + '-' + m + '-' + day
+    }
+
+    function formatGrindSessionChip(d) {
+      return d.toLocaleString(undefined, {
+        year: 'numeric', month: 'short', day: 'numeric',
+        hour: 'numeric', minute: '2-digit'
+      })
+    }
+
+    function normalizeGrindCode(code) {
+      var out = code.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+      if (out.indexOf('\n') < 0 && out.indexOf('\\n') >= 0) {
+        out = out.replace(/\\n/g, '\n').replace(/\\t/g, '\t')
+      }
+      return out
+    }
+
+    function formatGrindStamp(d) {
+      var label = d.toLocaleString(undefined, {
+        year: 'numeric', month: 'short', day: 'numeric',
+        hour: 'numeric', minute: '2-digit'
+      })
+      return lang === 'python3' ? '# Grind: ' + label : '// Grind: ' + label
+    }
+
+    function hasGrindStamp(code) {
+      var first = (code.split('\n')[0] || '').trim()
+      return lang === 'python3' ? first.indexOf('# Grind:') === 0 : first.indexOf('// Grind:') === 0
+    }
+
+    function readStampDateFromCode(code) {
+      var first = (code.split('\n')[0] || '').trim()
+      var prefix = lang === 'python3' ? '# Grind:' : '// Grind:'
+      if (first.indexOf(prefix) !== 0) return null
+      var label = first.slice(prefix.length).trim()
+      var parsed = new Date(label)
+      return isFinite(parsed.getTime()) ? parsed : null
+    }
+
+    function prependGrindStamp(code, d) {
+      var lines = code.split('\n')
+      if (lines.length && hasGrindStamp(code)) lines = lines.slice(1)
+      var body = lines.join('\n')
+      var stamp = formatGrindStamp(d)
+      return body.trim() ? stamp + '\n' + body : stamp
+    }
+
+    function readGrindDay(id) {
+      try { return localStorage.getItem(dayKey(id)) } catch (e) { return null }
+    }
+
+    function writeGrindDay(id, day) {
+      try { localStorage.setItem(dayKey(id), day) } catch (e) {}
+    }
+
+    function hasGrindAttempt(id, code) {
+      return hasGrindStamp(code) || readGrindDay(id) !== null || (function() {
+        try { return localStorage.getItem(startedKey(id)) !== null } catch (e) { return false }
+      })()
+    }
+
+    function inferSessionDay(id, code) {
+      var explicit = readGrindDay(id)
+      if (explicit) return explicit
+      var fromCode = readStampDateFromCode(code)
+      if (fromCode) return localCalendarDayKey(fromCode)
+      var started = null
+      try { started = localStorage.getItem(startedKey(id)) } catch (e) {}
+      if (started) return localCalendarDayKey(new Date(started))
+      return null
+    }
+
+    function getGrindSessionChipLabel(id, code) {
+      if (!hasGrindAttempt(id, code)) return null
+      var started = null
+      try { started = localStorage.getItem(startedKey(id)) } catch (e) {}
+      if (started) {
+        var parsed = new Date(started)
+        if (isFinite(parsed.getTime())) return formatGrindSessionChip(parsed)
+      }
+      var fromCode = readStampDateFromCode(code)
+      if (fromCode) return formatGrindSessionChip(fromCode)
+      var day = inferSessionDay(id, code)
+      if (!day) return null
+      var parts = day.split('-').map(Number)
+      return formatGrindSessionChip(new Date(parts[0], parts[1] - 1, parts[2], 12, 0))
+    }
+
+    function updateSessionChip(code, id) {
+      var label = getGrindSessionChipLabel(id || selectedId, code || (editorHandle ? editorHandle.getDoc() : ''))
+      var chips = [
+        document.getElementById('grind-session-chip'),
+        document.getElementById('grind-session-chip-fs')
+      ]
+      for (var i = 0; i < chips.length; i++) {
+        var chip = chips[i]
+        if (!chip) continue
+        if (label) {
+          chip.textContent = 'Last grind: ' + label
+          chip.classList.remove('hidden')
+        } else {
+          chip.textContent = ''
+          chip.classList.add('hidden')
+        }
+      }
+    }
+
+    function refreshGrindStampOnRecheck(id, code) {
+      var normalized = normalizeGrindCode(code)
+      var today = localCalendarDayKey()
+      if (!hasGrindAttempt(id, normalized)) return normalized
+      var sessionDay = inferSessionDay(id, normalized)
+      var storedDay = readGrindDay(id)
+      if (sessionDay === today && hasGrindStamp(normalized)) {
+        if (!storedDay) writeGrindDay(id, today)
+        return normalized
+      }
+      var now = new Date()
+      try { localStorage.setItem(startedKey(id), now.toISOString()) } catch (e) {}
+      writeGrindDay(id, today)
+      return prependGrindStamp(normalized, now)
+    }
+
+    function runGrindCodePipeline(id, code, starter, script, isStarter) {
+      var raw = isStarter ? code : refreshGrindStampOnRecheck(id, code)
+      var result = upgradeCodeWithInterview(raw, starter, script)
+      return {
+        code: result,
+        sessionLabel: getGrindSessionChipLabel(id, result)
+      }
+    }
+
+    function applyGrindStamp(id, code) {
+      var normalized = normalizeGrindCode(code)
+      if (hasGrindStamp(normalized)) {
+        return refreshGrindStampOnRecheck(id, normalized)
+      }
+      if (hasGrindAttempt(id, normalized)) {
+        var startedIso = null
+        try { startedIso = localStorage.getItem(startedKey(id)) } catch (e) {}
+        var d = startedIso ? new Date(startedIso) : null
+        if (!d || !isFinite(d.getTime())) {
+          var day = inferSessionDay(id, normalized)
+          if (day) {
+            var parts = day.split('-').map(Number)
+            d = new Date(parts[0], parts[1] - 1, parts[2], 12, 0)
+          } else {
+            d = new Date()
+          }
+        }
+        return prependGrindStamp(normalized, d)
+      }
+      var now = new Date()
+      try { localStorage.setItem(startedKey(id), now.toISOString()) } catch (e) {}
+      writeGrindDay(id, localCalendarDayKey(now))
+      return prependGrindStamp(normalized, now)
+    }
+
+    function ensureGrindStampOnLoad(id, code) {
+      return refreshGrindStampOnRecheck(id, code)
+    }
+
+    function titleComment(q) {
+      return lang === 'python3' ? '# ' + q.title : '// ' + q.title
+    }
+
+    function genericStarter(q) {
+      var body = lang === 'python3'
+        ? 'class Solution:\n    def solve(self):\n        pass\n'
+        : 'class Solution {\npublic:\n    void solve() {};\n};\n'
+      return titleComment(q) + '\n' + body
+    }
+
+    var DESCRIPTION_MARKER_PY = '# -- Problem Description --'
+    var DESCRIPTION_MARKER_CPP = '// -- Problem Description --'
+    var INTERVIEW_MARKER_PY = '# -- Interview Approach - STAR-LC --'
+    var INTERVIEW_MARKER_CPP = '// -- Interview Approach - STAR-LC --'
+    var LEARNING_SEP = '\n\n\n\n'
+
+    function descriptionMarker() {
+      return lang === 'python3' ? DESCRIPTION_MARKER_PY : DESCRIPTION_MARKER_CPP
+    }
+
+    function interviewMarker() {
+      return lang === 'python3' ? INTERVIEW_MARKER_PY : INTERVIEW_MARKER_CPP
+    }
+
+    function htmlToPlainText(html) {
+      var raw = String(html || '').trim()
+      if (!raw) return ''
+      var text = raw
+      if (raw.indexOf('<') >= 0) {
+        text = raw
+          .replace(/<br\s*\/?>/gi, '\n')
+          .replace(/<\/p>/gi, '\n')
+          .replace(/<\/li>/gi, '\n')
+          .replace(/<[^>]+>/g, ' ')
+      }
+      return text
+        .replace(/\r\n/g, '\n')
+        .replace(/\u00a0/g, ' ')
+        .replace(/[ \t]+\n/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim()
+    }
+
+    function descriptionForLang(description) {
+      var plain = htmlToPlainText(description)
+      if (!plain) return ''
+      return plain.split('\n').map(function(line) {
+        var trimmed = line.replace(/\s+$/, '')
+        if (lang === 'python3') return trimmed ? '# ' + trimmed : '#'
+        return trimmed ? '// ' + trimmed : '//'
+      }).join('\n')
+    }
+
+    function starterHasDescription(starter) {
+      return starter.indexOf(descriptionMarker()) >= 0
+    }
+
+    function starterHasInterview(starter) {
+      var marker = interviewMarker()
+      return starter.indexOf(marker) >= 0 || starter.indexOf('# PHASE 1') >= 0 || starter.indexOf('// PHASE 1') >= 0
+    }
+
+    function findLastCheckLineIndex(code) {
+      var lines = code.split('\n')
+      var last = -1
+      for (var i = 0; i < lines.length; i++) {
+        if (lines[i].trim().indexOf('_check(') === 0) last = i
+      }
+      return last
+    }
+
+    function interviewScriptForLang(script) {
+      if (lang === 'python3') return script.replace(/\s+$/, '')
+      return script.replace(/\s+$/, '').split('\n').map(function(line) {
+        if (!line) return ''
+        if (line.indexOf('#') === 0) return '//' + line.slice(1)
+        return '// ' + line
+      }).join('\n')
+    }
+
+    function stripLearningSections(code) {
+      var markers = [descriptionMarker(), interviewMarker(), lang === 'python3' ? '# PHASE 1' : '// PHASE 1']
+      var cut = code.length
+      for (var mi = 0; mi < markers.length; mi++) {
+        var idx = code.indexOf(markers[mi])
+        if (idx >= 0) cut = Math.min(cut, idx)
+      }
+      if (cut < code.length) return code.slice(0, cut).replace(/\s+$/, '')
+      return code
+    }
+
+    function stripDescriptionSection(code) {
+      var marker = descriptionMarker()
+      var start = code.indexOf(marker)
+      if (start < 0) return code
+      var tail = code.slice(start)
+      var iaIdx = tail.indexOf(interviewMarker())
+      var phaseIdx = tail.indexOf(lang === 'python3' ? '# PHASE 1' : '// PHASE 1')
+      var end = tail.length
+      if (iaIdx > 0) end = Math.min(end, iaIdx)
+      if (phaseIdx > 0) end = Math.min(end, phaseIdx)
+      var before = code.slice(0, start).replace(/\s+$/, '')
+      var after = tail.slice(end).replace(/^\s+/, '')
+      if (!after) return before
+      return before + '\n\n' + after
+    }
+
+    function codeBaseForLearningInsert(code) {
+      var stripped = stripLearningSections(code)
+      if (stripped.length < code.length) return stripped
+      return codeBaseForInterviewInsert(code)
+    }
+
+    function formatDescriptionBlock(description) {
+      var body = descriptionForLang(description)
+      if (!body) return ''
+      return descriptionMarker() + '\n' + body
+    }
+
+    function formatInterviewBlock(script) {
+      return interviewMarker() + '\n' + interviewScriptForLang(script)
+    }
+
+    function extractDescriptionSection(starter) {
+      var marker = descriptionMarker()
+      var start = starter.indexOf(marker)
+      if (start < 0) return ''
+      var tail = starter.slice(start)
+      var iaIdx = tail.indexOf(interviewMarker())
+      var phaseIdx = tail.indexOf(lang === 'python3' ? '# PHASE 1' : '// PHASE 1')
+      var end = tail.length
+      if (iaIdx > 0) end = Math.min(end, iaIdx)
+      if (phaseIdx > 0) end = Math.min(end, phaseIdx)
+      return tail.slice(0, end).replace(/\s+$/, '')
+    }
+
+    function appendGrindLearning(starter, description, script) {
+      var hasDesc = starterHasDescription(starter)
+      var hasIa = starterHasInterview(starter)
+      if (hasDesc && hasIa) return starter
+      var base = codeBaseForLearningInsert(stripLearningSections(starter)).replace(/\s+$/, '')
+      var parts = []
+      if (!hasDesc) {
+        var descBlock = extractDescriptionSection(starter) || (description && String(description).trim() ? formatDescriptionBlock(description) : '')
+        if (descBlock) parts.push(descBlock)
+      }
+      if (!hasIa) {
+        var iaBlock = extractInterviewSection(starter) || (script && String(script).trim() ? formatInterviewBlock(script) : '')
+        if (iaBlock) parts.push(iaBlock)
+      }
+      if (!parts.length) return starter
+      return base + LEARNING_SEP + parts.join(LEARNING_SEP) + '\n'
+    }
+
+    function appendInterviewApproach(starter, script) {
+      return appendGrindLearning(starter, null, script)
+    }
+
+    function extractInterviewSection(starter) {
+      var marker = interviewMarker()
+      var markerIdx = starter.indexOf(marker)
+      if (markerIdx >= 0) return starter.slice(markerIdx).replace(/\s+$/, '')
+      var phase = lang === 'python3' ? '# PHASE 1' : '// PHASE 1'
+      var phaseIdx = starter.indexOf(phase)
+      if (phaseIdx >= 0) return starter.slice(phaseIdx).replace(/\s+$/, '')
+      return ''
+    }
+
+    function starterHasExamples(starter) {
+      return starter.indexOf('# ── Examples ──') >= 0 || starter.indexOf('# ── Test ──') >= 0
+    }
+
+    function upgradeCodeWithLearning(code, starter, description, script) {
+      var hasEx = starterHasExamples(code)
+      var hasDesc = starterHasDescription(code)
+      var hasIa = starterHasInterview(code)
+      if (hasEx && hasDesc && hasIa) return code
+      var base = codeBaseForLearningInsert(code)
+      if (!hasEx) {
+        var starterBase = codeBaseForLearningInsert(starter)
+        if (starterHasExamples(starterBase)) base = starterBase
+      }
+      var parts = []
+      if (!hasDesc) {
+        var descBlock = extractDescriptionSection(starter) || (description && String(description).trim() ? formatDescriptionBlock(description) : '')
+        if (descBlock) parts.push(descBlock)
+      }
+      if (!hasIa) {
+        var iaBlock = extractInterviewSection(starter) || (script && String(script).trim() ? formatInterviewBlock(script) : '')
+        if (iaBlock) parts.push(iaBlock)
+      }
+      if (!parts.length) return code
+      return base + LEARNING_SEP + parts.join(LEARNING_SEP) + '\n'
+    }
+
+    function upgradeCodeWithInterview(code, starter, script) {
+      var stripped = stripDescriptionSection(code)
+      return upgradeCodeWithLearning(stripped, starter, null, script)
+    }
+
+    function codeBaseForInterviewInsert(code) {
+      var lines = code.split('\n')
+      var lastCheck = findLastCheckLineIndex(code)
+      if (lastCheck >= 0) return lines.slice(0, lastCheck + 1).join('\n')
+      var testIdx = -1
+      for (var i = 0; i < lines.length; i++) {
+        var t = lines[i].trim()
+        if ((t.indexOf('Test') >= 0 || t.indexOf('Examples') >= 0) && t.indexOf('#') === 0) testIdx = i
+      }
+      if (testIdx >= 0) {
+        var end = testIdx
+        for (var j = testIdx + 1; j < lines.length; j++) {
+          var u = lines[j].trim()
+          if (u.indexOf('Problem Description') >= 0 || u.indexOf('Interview Approach') >= 0 || u.indexOf('PHASE 1') >= 0) break
+          end = j
+        }
+        return lines.slice(0, end + 1).join('\n')
+      }
+      return code.replace(/\s+$/, '')
+    }
+
+    function migrateAllDrafts() {
+      try {
+        if (localStorage.getItem('lm_grind_strip_desc_v1')) return
+      } catch (e) { return }
+      var langs = ['python3', 'cpp']
+      for (var qi = 0; qi < questions.length; qi++) {
+        var q = questions[qi]
+        for (var li = 0; li < langs.length; li++) {
+          var savedLang = lang
+          lang = langs[li]
+          try {
+            var d = localStorage.getItem(draftKey(q.id))
+            if (d !== null) {
+              var starter = starterFor(q)
+              var next = upgradeCodeWithInterview(d, starter, q.interviewApproach)
+              if (next !== d) localStorage.setItem(draftKey(q.id), next)
+            }
+            var cachedStarter = localStorage.getItem(starterKey(q.id))
+            if (cachedStarter !== null) {
+              var cleanedStarter = upgradeCodeWithInterview(cachedStarter, cachedStarter, q.interviewApproach)
+              if (cleanedStarter !== cachedStarter) localStorage.setItem(starterKey(q.id), cleanedStarter)
+            }
+          } catch (e) {}
+          lang = savedLang
+        }
+      }
+      try { localStorage.setItem('lm_grind_strip_desc_v1', String(Date.now())) } catch (e) {}
+    }
+
+    function starterFor(q) {
+      var bundled = lang === 'python3' ? q.starterPython : q.starterCpp
+      if (bundled) {
+        bundled = normalizeGrindCode(bundled)
+        var c = titleComment(q)
+        if (bundled.indexOf(c) !== 0) bundled = c + '\n' + bundled
+        return appendInterviewApproach(bundled, q.interviewApproach)
+      }
+      try {
+        var cached = localStorage.getItem(starterKey(q.id))
+        if (cached) return appendInterviewApproach(cached, q.interviewApproach)
+      } catch (e) {}
+      return appendInterviewApproach(genericStarter(q), q.interviewApproach)
+    }
+
+    function loadCode(q) {
+      var starter = starterFor(q)
+      try {
+        var d = localStorage.getItem(draftKey(q.id))
+        if (d !== null) {
+          var piped = runGrindCodePipeline(q.id, d, starter, q.interviewApproach, false)
+          if (piped.code !== d) {
+            try { localStorage.setItem(draftKey(q.id), piped.code) } catch (e) {}
+          }
+          return piped.code
+        }
+      } catch (e) {}
+      return starter
+    }
+
+    function saveCode(id, code) {
+      var next = applyGrindStamp(id, code)
+      try { localStorage.setItem(draftKey(id), next) } catch (e) {}
+      document.getElementById('status').textContent = 'Saved locally'
+      if (editorHandle && next !== code) editorHandle.setDoc(next)
+      updateSessionChip(next, id)
+      return next
+    }
+
+    function clearGrindStartedAt(id) {
+      try {
+        localStorage.removeItem(startedKey(id))
+        localStorage.removeItem(dayKey(id))
+      } catch (e) {}
+    }
+
+    function resetToStarter() {
+      var q = currentQuestion()
+      if (!q) return
+      var starter = starterFor(q)
+      try { localStorage.setItem(draftKey(q.id), starter) } catch (e) {}
+      if (editorHandle) editorHandle.setDoc(starter)
+      updateSessionChip(starter, q.id)
+      var status = document.getElementById('status')
+      if (status) status.textContent = 'Reset to starter'
+    }
+
+    function matches(q, s) {
+      if (!s) return true
+      s = s.toLowerCase().trim()
+      var byId = s.replace(/^#/, '')
+      return q.title.toLowerCase().indexOf(s) >= 0 || String(q.id).indexOf(byId) >= 0
+    }
+
+    function currentQuestion() {
+      return questions.find(function(x) { return x.id === selectedId })
+    }
+
+    function navList() {
+      var s = document.getElementById('search').value.trim()
+      return s ? filtered : questions
+    }
+
+    function navIndex() {
+      var list = navList()
+      for (var i = 0; i < list.length; i++) {
+        if (list[i].id === selectedId) return i
+      }
+      return -1
+    }
+
+    function updateNavUI() {
+      var list = navList()
+      var idx = navIndex()
+      var prev = document.getElementById('btn-prev')
+      var next = document.getElementById('btn-next')
+      var count = document.getElementById('nav-count')
+      if (prev) prev.disabled = idx <= 0
+      if (next) next.disabled = idx < 0 || idx >= list.length - 1
+      if (count) count.textContent = idx >= 0 ? (idx + 1) + '/' + list.length : ''
+    }
+
+    function goNav(delta) {
+      var list = navList()
+      var idx = navIndex()
+      if (idx < 0) return
+      var n = list[idx + delta]
+      if (n) selectQuestion(n.id, false)
+    }
+
+    function metaText(q) {
+      return '#' + q.id + ' - ' + q.title + ' (Set ' + q.set + ')'
+    }
+
+    function updateMeta() {
+      var q = currentQuestion()
+      if (!q) return
+      var text = metaText(q)
+      var meta = document.getElementById('meta-text')
+      if (meta) meta.textContent = text
+      var fsMeta = document.getElementById('fs-meta')
+      if (fsMeta) fsMeta.textContent = text
+    }
+
+    function setDividerLabel(setNum) {
+      if (setNum === 1) return 'Set 1 - Main 331'
+      if (setNum === 2) return 'Set 2 - NeetCode 250'
+      return 'Set 3 - AlgoMaster 600'
+    }
+
+    function renderList() {
+      var list = document.getElementById('list')
+      var head = document.getElementById('list-head')
+      if (!list) return
+      if (head) {
+        var s = document.getElementById('search').value.trim()
+        head.textContent = filtered.length + ' question' + (filtered.length === 1 ? '' : 's') + (s ? ' matching' : '')
+      }
+      list.innerHTML = ''
+      var lastSet = 0
+      var lastSection = null
+      filtered.forEach(function(q) {
+        if (q.set !== lastSet) {
+          var setDiv = document.createElement('div')
+          setDiv.className = 'list-divider-set'
+          setDiv.textContent = setDividerLabel(q.set)
+          list.appendChild(setDiv)
+          lastSet = q.set
+          lastSection = null
+        }
+        if (q.section && q.section !== lastSection) {
+          var secDiv = document.createElement('div')
+          secDiv.className = 'list-divider-sec'
+          secDiv.textContent = q.section
+          list.appendChild(secDiv)
+          lastSection = q.section
+        }
+        var btn = document.createElement('button')
+        btn.type = 'button'
+        btn.className = 'q' + (q.id === selectedId ? ' on' : '')
+        btn.innerHTML = '<div class="q-id">#' + q.id + ' ? ' + q.difficulty + '</div><div class="q-title">' + q.title + '</div>'
+        btn.onclick = function() { selectQuestion(q.id) }
+        list.appendChild(btn)
+      })
+      updateNavUI()
+    }
+
+    function syncLangButtons() {
+      var pyOn = lang === 'python3' ? 'on-py' : ''
+      var cppOn = lang === 'cpp' ? 'on-cpp' : ''
+      document.getElementById('btn-py').className = pyOn
+      document.getElementById('btn-cpp').className = cppOn
+      var fsPy = document.getElementById('fs-btn-py')
+      var fsCpp = document.getElementById('fs-btn-cpp')
+      if (fsPy) fsPy.className = pyOn
+      if (fsCpp) fsCpp.className = cppOn
+    }
+
+    function resetAppLayout() {
+      var app = document.querySelector('.app')
+      if (app) app.style.cssText = ''
+      document.body.classList.remove('kbd-open', 'fs-open')
+      document.body.style.overflow = ''
+      document.documentElement.style.overflow = ''
+      var portal = document.getElementById('fs-portal')
+      if (portal) {
+        portal.style.top = ''
+        portal.style.height = ''
+        portal.style.bottom = ''
+        portal.style.maxHeight = ''
+      }
+      ;['editor-host', 'editor-host-fs'].forEach(function(id) {
+        var h = document.getElementById(id)
+        if (h) h.style.height = ''
+      })
+      window.scrollTo(0, 0)
+    }
+
+    function syncEditorHeight() {
+      var host = document.getElementById(editorHostId)
+      if (!host) return
+      if (isMobile() && !editorExpanded) return
+      var pane = editorExpanded
+        ? document.querySelector('.fs-editor')
+        : host.closest('.editor-code-pane')
+      if (!pane) return
+      var h = pane.clientHeight
+      if (h > 0) host.style.height = h + 'px'
+    }
+
+    function initEditor() {
+      var q = currentQuestion()
+      var host = document.getElementById(editorHostId)
+      if (!q || !host || !window.GrindOfflineEditor) return
+      if (isMobile() && !editorExpanded) {
+        if (editorHandle) {
+          editorHandle.destroy()
+          editorHandle = null
+        }
+        return
+      }
+      syncEditorHeight()
+      if (editorHandle) editorHandle.destroy()
+      editorHandle = window.GrindOfflineEditor.create(host, {
+        lang: lang,
+        value: loadCode(q),
+        onChange: function(val) {
+          clearTimeout(saveTimer)
+          var id = selectedId
+          saveTimer = setTimeout(function() { saveCode(id, val) }, 300)
+        }
+      })
+      updateSessionChip(loadCode(q), q.id)
+      requestAnimationFrame(syncEditorHeight)
+    }
+
+    function stripDescScripts(html) {
+      if (!html) return ''
+      return String(html).replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    }
+
+    function prefetchDescriptionImages(html) {
+      if (!html || !navigator.onLine) return
+      var paths = []
+      var re = /\/description-images\/[a-zA-Z0-9._-]+/g
+      var m
+      while ((m = re.exec(html))) paths.push(m[0])
+      paths.forEach(function(p) {
+        fetch(p, { cache: 'reload' }).catch(function() {})
+      })
+    }
+
+    function cacheAllDescriptionImages() {
+      if (!navigator.onLine) return Promise.resolve()
+      return fetch('/description-images-manifest.json', { cache: 'reload' })
+        .catch(function() { return fetchCached('/description-images-manifest.json') })
+        .then(function(r) { return r.json() })
+        .then(function(paths) {
+          if (!paths || !paths.length) return
+          function cacheDirect() {
+            return caches.open('lm-images').then(function(cache) {
+              var batch = 8
+              var i = 0
+              function nextBatch() {
+                if (i >= paths.length) {
+                  try { localStorage.setItem(DESC_IMG_CACHE_KEY, String(Date.now())) } catch (e) {}
+                  return Promise.resolve()
+                }
+                var slice = paths.slice(i, i + batch)
+                i += batch
+                return Promise.all(slice.map(function(p) {
+                  return cache.match(p, { ignoreSearch: true }).then(function(hit) {
+                    if (hit) return hit
+                    return fetch(p, { cache: 'reload' }).then(function(res) {
+                      if (res.ok) return cache.put(p, res.clone())
+                    }).catch(function() {})
+                  })
+                })).then(nextBatch)
+              }
+              return nextBatch()
+            })
+          }
+          if (!('serviceWorker' in navigator)) return cacheDirect()
+          return navigator.serviceWorker.ready.then(function(reg) {
+            var worker = reg.active || reg.waiting || reg.installing
+            if (!worker) return cacheDirect()
+            return new Promise(function(resolve) {
+              var done = false
+              function finish() { if (!done) { done = true; resolve() } }
+              function onMsg(ev) {
+                if (ev.data && ev.data.type === 'DESC_IMG_DONE') finish()
+              }
+              navigator.serviceWorker.addEventListener('message', onMsg)
+              worker.postMessage({ type: 'CACHE_DESCRIPTION_IMAGES', paths: paths })
+              setTimeout(finish, 180000)
+            }).then(function() {
+              try { localStorage.setItem(DESC_IMG_CACHE_KEY, String(Date.now())) } catch (e) {}
+            })
+          }).catch(function() { return cacheDirect() })
+        })
+        .catch(function() {})
+    }
+
+    function cacheOfflineBundle() {
+      if (!navigator.onLine || !('caches' in window)) return Promise.resolve()
+      return caches.open(SW_CACHE).then(function(cache) {
+        var urls = ['/grind-offline.html', '/questions_data_all.json', '/grind_questions.json', '/description-images-manifest.json']
+        return Promise.all(urls.map(function(url) {
+          return fetch(url, { cache: 'reload' }).then(function(r) {
+            if (r.ok) return cache.put(url, r.clone())
+          }).catch(function() {})
+        }))
+      })
+    }
+
+    function renderDescription() {
+      var el = document.getElementById('desc-body')
+      if (!el) return
+      var q = currentQuestion()
+      if (!q) { el.innerHTML = '<div class="desc-empty">No question selected.</div>'; return }
+      var row = descriptions[String(q.id)] || {}
+      var html = (q.descriptionHtml || row.description_html || '').trim()
+      if (html) {
+        el.innerHTML = stripDescScripts(html)
+        prefetchDescriptionImages(html)
+        return
+      }
+      var plain = q.description || row.description
+      if (plain && String(plain).trim()) {
+        el.textContent = plain
+        return
+      }
+      el.innerHTML = '<div class="desc-empty">Description not cached yet.</div>'
+    }
+
+    function renderEditor() {
+      updateMeta()
+      renderDescription()
+      var q = currentQuestion()
+      if (editorHandle) {
+        var doc = loadCode(q)
+        editorHandle.setDoc(doc)
+        if (q) updateSessionChip(doc, q.id)
+      } else if (!isMobile() || editorExpanded) initEditor()
+      else if (q) updateSessionChip(loadCode(q), q.id)
+    }
+
+    function setListOpen(open) {
+      listOpen = open
+      var wrap = document.getElementById('list-wrap')
+      var backdrop = document.getElementById('list-backdrop')
+      var btn = document.getElementById('btn-list')
+      if (wrap) wrap.classList.toggle('open', open)
+      if (backdrop) backdrop.classList.toggle('open', open)
+      if (btn) btn.textContent = open ? 'Hide' : 'List'
+    }
+
+    function setEditorExpanded(open) {
+      if (open === editorExpanded) return
+      var q = currentQuestion()
+      if (!q) return
+      editorExpanded = open
+      var portal = document.getElementById('fs-portal')
+      if (open) {
+        setListOpen(false)
+        editorHostId = 'editor-host-fs'
+        portal.classList.add('open')
+        document.body.classList.add('fs-open')
+        initEditor()
+        updateMeta()
+        layoutFullscreenEditor()
+      } else {
+        editorHostId = 'editor-host'
+        portal.classList.remove('open')
+        document.body.classList.remove('fs-open')
+        if (editorHandle) {
+          editorHandle.destroy()
+          editorHandle = null
+        }
+        resetAppLayout()
+        initEditor()
+        renderDescription()
+      }
+    }
+
+    function layoutFullscreenEditor() {
+      var portal = document.getElementById('fs-portal')
+      var vv = window.visualViewport
+      if (!portal || !portal.classList.contains('open')) return
+      portal.style.position = 'fixed'
+      portal.style.left = '0'
+      portal.style.right = '0'
+      portal.style.top = '0'
+      portal.style.bottom = 'auto'
+      var h = vv ? vv.height : window.innerHeight
+      portal.style.height = h + 'px'
+      portal.style.maxHeight = h + 'px'
+      syncEditorHeight()
+    }
+
+    function selectQuestion(id, closeList) {
+      if (closeList === undefined) closeList = true
+      selectedId = id
+      renderList()
+      renderEditor()
+      if (closeList) setListOpen(false)
+      updateConnectivityUI()
+      try { history.replaceState(null, '', '?id=' + id) } catch (e) {}
+    }
+
+    var descCollapsed = false
+
+    function isMobile() {
+      return window.matchMedia('(max-width: 767px)').matches
+    }
+
+    function setDescCollapsed(collapsed) {
+      descCollapsed = collapsed
+      var card = document.getElementById('desc-card')
+      var btn = document.getElementById('btn-desc-toggle')
+      if (card) card.classList.toggle('collapsed', collapsed)
+      if (btn) {
+        btn.textContent = collapsed ? 'Show' : 'Hide'
+        btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true')
+      }
+    }
+
+    function bindVisualViewport() {
+      var vv = window.visualViewport
+      if (!vv) return
+      function update() {
+        if (!isMobile()) {
+          resetAppLayout()
+          return
+        }
+        if (editorExpanded) {
+          layoutFullscreenEditor()
+        } else {
+          resetAppLayout()
+        }
+      }
+      vv.addEventListener('resize', update)
+      vv.addEventListener('scroll', function() {
+        if (editorExpanded) window.scrollTo(0, 0)
+      })
+      window.addEventListener('resize', update)
+      window.addEventListener('pageshow', resetAppLayout)
+      document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') {
+          if (!editorExpanded) resetAppLayout()
+          else layoutFullscreenEditor()
+        }
+      })
+      update()
+    }
+
+    function buildUI() {
+      var body = document.getElementById('body')
+      body.innerHTML =
+        '<aside class="list-wrap" id="list-wrap">' +
+          '<div class="list-head" id="list-head"></div>' +
+          '<div class="list" id="list"></div>' +
+        '</aside>' +
+        '<div class="list-backdrop" id="list-backdrop"></div>' +
+        '<section class="editor" aria-label="Code editor workspace">' +
+          '<div class="meta">' +
+            '<span id="meta-text"></span>' +
+            '<button type="button" class="chip-btn mob-only" id="btn-full" aria-label="Open full screen editor">Full</button>' +
+          '</div>' +
+          '<div class="editor-stack">' +
+            '<div class="desc-card" id="desc-card" role="region" aria-label="Problem description">' +
+              '<div class="desc-card-head">' +
+                '<span>Problem Description</span>' +
+                '<button type="button" class="desc-toggle mob-only" id="btn-desc-toggle" aria-expanded="true" aria-label="Toggle problem description">Hide</button>' +
+              '</div>' +
+              '<div class="desc-card-body" id="desc-body"></div>' +
+            '</div>' +
+            '<div class="editor-code-pane">' +
+              '<div class="mobile-code-cta mob-only" id="mobile-code-cta">' +
+                '<p class="mobile-code-cta-text">Read the problem above, then write your solution from memory.</p>' +
+                '<button type="button" class="chip-btn" id="btn-write-code" aria-label="Open code editor">Write code</button>' +
+              '</div>' +
+              '<div class="practice-cm-wrap mob-editor-inline"><div id="editor-host" role="textbox" aria-label="Solution code editor" aria-multiline="true"></div></div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="editor-footer">' +
+            '<div class="editor-footer-left">' +
+              '<span class="editor-hint">no submit - write from memory</span>' +
+              '<span class="grind-session-chip hidden" id="grind-session-chip"></span>' +
+            '</div>' +
+            '<div class="editor-footer-actions">' +
+              '<button type="button" class="chip-btn" id="btn-copy" aria-label="Copy all code">Copy</button>' +
+              '<button type="button" class="chip-btn" id="btn-reset" aria-label="Reset to starter code">Reset to starter</button>' +
+            '</div>' +
+          '</div>' +
+        '</section>'
+      document.getElementById('list-backdrop').onclick = function() { setListOpen(false) }
+      document.getElementById('btn-list').onclick = function() { setListOpen(!listOpen) }
+      document.getElementById('btn-prev').onclick = function() { goNav(-1) }
+      document.getElementById('btn-next').onclick = function() { goNav(1) }
+      document.getElementById('btn-full').onclick = function() { setEditorExpanded(true) }
+      var writeBtn = document.getElementById('btn-write-code')
+      if (writeBtn) writeBtn.onclick = function() { setEditorExpanded(true) }
+      document.getElementById('btn-reset').onclick = function() { resetToStarter() }
+      var copyBtn = document.getElementById('btn-copy')
+      if (copyBtn) copyBtn.onclick = function() { copyEditorCode(copyBtn) }
+      var descToggle = document.getElementById('btn-desc-toggle')
+      if (descToggle) {
+        descToggle.onclick = function() { setDescCollapsed(!descCollapsed) }
+      }
+      document.getElementById('btn-fs-close').onclick = function() { setEditorExpanded(false) }
+      document.getElementById('fs-btn-py').onclick = function() { setLang('python3') }
+      document.getElementById('fs-btn-cpp').onclick = function() { setLang('cpp') }
+
+      var sp = new URLSearchParams(location.search)
+      var fromUrl = parseInt(sp.get('id') || '0', 10)
+      filtered = questions.slice()
+      selectedId = fromUrl && questions.some(function(q) { return q.id === fromUrl }) ? fromUrl : questions[0].id
+      editorHostId = 'editor-host'
+      renderList()
+      initEditor()
+      updateMeta()
+      renderDescription()
+      updateNavUI()
+      bindVisualViewport()
+    }
+
+    function setLang(next) {
+      if (next === lang) return
+      lang = next
+      syncLangButtons()
+      var q = currentQuestion()
+      if (!editorHandle || !q) return
+      editorHandle.setLang(next)
+      editorHandle.setDoc(loadCode(q))
+    }
+
+    document.getElementById('btn-py').onclick = function() { setLang('python3') }
+    document.getElementById('btn-cpp').onclick = function() { setLang('cpp') }
+    document.getElementById('btn-reset-fs').onclick = function() { resetToStarter() }
+    document.getElementById('btn-copy-fs').onclick = function() {
+      copyEditorCode(document.getElementById('btn-copy-fs'))
+    }
+    document.getElementById('search').addEventListener('input', function(e) {
+      var s = e.target.value
+      filtered = questions.filter(function(q) { return matches(q, s) })
+      if (filtered.length && !filtered.some(function(q) { return q.id === selectedId })) {
+        selectedId = filtered[0].id
+      }
+      renderList()
+      renderEditor()
+      if (s.trim() && window.matchMedia('(max-width: 767px)').matches) setListOpen(true)
+    })
+
+    function fetchCached(url) {
+      if (!('caches' in window)) return Promise.reject(new Error('no cache'))
+      var names = [SW_CACHE, 'lm-v16', 'lm-v15', 'lm-v14', 'lm-v13']
+      var i = 0
+      function tryNext() {
+        if (i >= names.length) return Promise.reject(new Error('missing'))
+        var name = names[i++]
+        return caches.open(name).then(function(cache) {
+          return cache.match(url, { ignoreSearch: true })
+        }).then(function(r) {
+          if (r) return r
+          return tryNext()
+        })
+      }
+      return caches.match(url, { ignoreSearch: true }).then(function(r) {
+        return r || tryNext()
+      })
+    }
+
+    function loadEditorScript() {
+      if (window.GrindOfflineEditor) return Promise.resolve()
+      return new Promise(function(resolve, reject) {
+        var done = false
+        function finish() { if (!done) { done = true; resolve() } }
+        function fail() {
+          fetchCached('/grind-offline-editor.js').then(function(r) { return r.text() }).then(function(code) {
+            var inline = document.createElement('script')
+            inline.textContent = code
+            document.head.appendChild(inline)
+            finish()
+          }).catch(reject)
+        }
+        var s = document.createElement('script')
+        s.src = '/grind-offline-editor.js'
+        s.onload = finish
+        s.onerror = fail
+        document.head.appendChild(s)
+      })
+    }
+
+    function loadQuestions() {
+      return fetch('/grind_questions.json', { cache: 'no-store' })
+        .then(function(r) {
+          if (r.ok) return r.json()
+          throw new Error('network')
+        })
+        .catch(function() {
+          return fetchCached('/grind_questions.json').then(function(r) { return r.json() })
+        })
+    }
+
+    function loadDescriptions() {
+      return fetch('/questions_data_all.json', { cache: 'no-store' })
+        .then(function(r) {
+          if (r.ok) return r.json()
+          throw new Error('network')
+        })
+        .catch(function() {
+          return fetchCached('/questions_data_all.json').then(function(r) { return r.json() })
+        })
+    }
+
+    loadEditorScript()
+      .then(function() {
+        return loadQuestions()
+      })
+      .then(function(qs) {
+        questions = qs
+        return loadDescriptions().catch(function() { return {} })
+      })
+      .then(function(desc) {
+        descriptions = desc || {}
+        migrateAllDrafts()
+        buildUI()
+        updateConnectivityUI()
+        var status = document.getElementById('status')
+        if (status) {
+          status.textContent = navigator.onLine
+            ? questions.length + ' questions · ' + OFFLINE_VERSION
+            : 'Offline · ' + OFFLINE_VERSION + ' · saved locally'
+        }
+        return cacheOfflineBundle().then(function() {
+          return cacheAllDescriptionImages()
+        })
+      })
+      .catch(function() {
+        document.getElementById('body').innerHTML =
+          '<div class="err">Could not load offline Grind. Open the app online once and wait for the download to finish.</div>'
+      })
+  </script>
+</body>
+</html>
