@@ -1,13 +1,13 @@
+import type { GrindQuestion } from './grindQuestions'
 import {
   dailyRepsFromProgress,
   isCatchUpDailyCleared,
   isPlanDayComplete,
   isQuestionDoneForDailyToday,
-  normalizeRepDate,
   type DailyProgressSlice,
 } from './dailyCompletion'
+import { isActiveDailyBlockComplete } from './streakGoals'
 import { diffDaysSincePlanStart, todayISOChicago, type StudyPlanForStreak } from './studyPlanDay'
-import type { Question } from './questions'
 
 export type StudyPlan = StudyPlanForStreak & { mode?: string }
 
@@ -76,19 +76,32 @@ export function getActiveDayIndex(
 }
 
 export type DailyQueueItem = {
-  question: Question
+  question: GrindQuestion
   kind: 'makeup' | 'today'
   done: boolean
   reps: number
   repsTarget: number
+  scheduledDay?: number
+}
+
+export type DailyPlanMeta = {
+  dayNumber: number
+  totalDays: number
+  perDay: number
+  repsPerQ: number
+  dailyBlockDone: boolean
+  dayComplete: boolean
+  makeupPending: number
+  todayPending: number
 }
 
 export function buildDailyQueue(
   plan: StudyPlan,
-  questions: Question[],
+  questions: GrindQuestion[],
   progress: Record<string, DailyProgressSlice | undefined>,
   repsPerQ = 2,
-): DailyQueueItem[] {
+  opts?: { dailyDoneTodayCount?: number; dueReviewCount?: number },
+): { items: DailyQueueItem[]; meta: DailyPlanMeta } {
   const today = todayISOChicago()
   const dailyReps = dailyRepsFromProgress(progress, today)
   const calendarDayIndex = getCalendarDayIndex(plan)
@@ -96,12 +109,14 @@ export function buildDailyQueue(
   const todayIds = getDayQuestionIds(plan, activeDay)
   const pushed = getPushedForwardIds(plan, progress, calendarDayIndex, repsPerQ, dailyReps)
   const todaySet = new Set(todayIds)
+  const qById = new Map(questions.map(q => [q.id, q]))
+  const totalDays = Math.ceil(plan.question_order.length / plan.per_day)
 
   const items: DailyQueueItem[] = []
 
   for (const id of pushed) {
     if (todaySet.has(id)) continue
-    const q = questions.find(x => x.id === id)
+    const q = qById.get(id)
     if (!q) continue
     items.push({
       question: q,
@@ -113,7 +128,7 @@ export function buildDailyQueue(
   }
 
   for (const id of todayIds) {
-    const q = questions.find(x => x.id === id)
+    const q = qById.get(id)
     if (!q) continue
     items.push({
       question: q,
@@ -121,20 +136,32 @@ export function buildDailyQueue(
       done: isQuestionDoneForDailyToday(id, progress, today, dailyReps, repsPerQ),
       reps: dailyReps[String(id)] ?? progress[String(id)]?.daily_rep_count ?? 0,
       repsTarget: repsPerQ,
+      scheduledDay: activeDay + 1,
     })
   }
 
-  return items
-}
+  const makeupPending = items.filter(i => i.kind === 'makeup' && !i.done).length
+  const todayPending = items.filter(i => i.kind === 'today' && !i.done).length
+  const dailyBlockDone = isActiveDailyBlockComplete(plan, progress, {
+    mode: plan.mode,
+    dailyDoneTodayCount: opts?.dailyDoneTodayCount ?? 0,
+    dailyReps,
+    repsPerQ,
+  })
 
-export function isQuestionDoneForDaily(
-  id: number,
-  progress: Record<string, DailyProgressSlice | undefined>,
-  repsPerQ = 2,
-): boolean {
-  const today = todayISOChicago()
-  const dailyReps = dailyRepsFromProgress(progress, today)
-  return isQuestionDoneForDailyToday(id, progress, today, dailyReps, repsPerQ)
+  return {
+    items,
+    meta: {
+      dayNumber: activeDay + 1,
+      totalDays,
+      perDay: plan.per_day,
+      repsPerQ,
+      dailyBlockDone,
+      dayComplete: dailyBlockDone && (opts?.dueReviewCount ?? 0) === 0,
+      makeupPending,
+      todayPending,
+    },
+  }
 }
 
 export function repsPerQuestion(): number {
@@ -145,8 +172,4 @@ export function repsPerQuestion(): number {
   } catch {
     return 2
   }
-}
-
-export function lastDailyDoneToday(progress: Record<string, DailyProgressSlice | undefined>, id: number): boolean {
-  return normalizeRepDate(progress[String(id)]?.last_daily_done) === todayISOChicago()
 }

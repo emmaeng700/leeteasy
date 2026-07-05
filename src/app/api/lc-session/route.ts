@@ -1,15 +1,17 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { getSupabase } from '@/lib/supabase'
 import { parseStoredLcSession } from '@/lib/leetcodeHttp'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-)
 
 const USER_ID = 'emmanuel'
 
 export async function GET() {
+  let supabase
+  try {
+    supabase = getSupabase()
+  } catch {
+    return NextResponse.json({ lc_session: '', lc_csrf: '' })
+  }
+
   const { data, error } = await supabase
     .from('user_settings')
     .select('lc_session, lc_csrf')
@@ -29,6 +31,13 @@ export async function POST(req: Request) {
   const rawCsrf = String(body.lc_csrf ?? '').trim()
 
   const { session: lc_session, csrf: lc_csrf } = parseStoredLcSession(rawSession, rawCsrf)
+
+  let supabase
+  try {
+    supabase = getSupabase()
+  } catch {
+    return NextResponse.json({ error: 'Supabase not configured' }, { status: 503 })
+  }
 
   const { error } = await supabase
     .from('user_settings')

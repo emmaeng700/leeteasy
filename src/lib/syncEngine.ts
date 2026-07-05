@@ -4,14 +4,12 @@
  */
 
 import { bumpDailyRep, completeReview, getProgress } from '@/lib/db'
-import {
-  isQuestionDoneForDaily,
-  repsPerQuestion,
-  type DailyQueueItem,
-} from '@/lib/dailyQueue'
+import { isQuestionDoneForDailyToday } from '@/lib/dailyCompletion'
+import { repsPerQuestion, type DailyQueueItem } from '@/lib/dailyQueue'
 import { fetchAcBySlug, loadLcSessionForSync, readLcListSync, syncLeetCodeAccepted } from '@/lib/leetcodeListSync'
+import { todayISOChicago } from '@/lib/studyPlanDay'
 import { resolveLeetCodeSlug } from '@/lib/utils'
-import type { Question } from '@/lib/questions'
+import type { GrindQuestion } from '@/lib/grindQuestions'
 
 const BASELINE_KEY = 'leteasy_ac_baseline'
 
@@ -29,7 +27,7 @@ function writeBaseline(bySlug: Record<string, number>) {
   localStorage.setItem(BASELINE_KEY, JSON.stringify(bySlug))
 }
 
-function slugForQuestion(q: Question): string {
+function slugForQuestion(q: GrindQuestion): string {
   return resolveLeetCodeSlug(q.id, q.slug)
 }
 
@@ -42,7 +40,7 @@ export type SyncApplyResult = {
 }
 
 export async function syncAndApplyProgress(opts: {
-  questions: Question[]
+  questions: GrindQuestion[]
   dailyQueue: DailyQueueItem[]
   reviewIds: number[]
 }): Promise<SyncApplyResult> {
@@ -61,6 +59,7 @@ export async function syncAndApplyProgress(opts: {
   const reviewSet = new Set(opts.reviewIds)
 
   const progress = (await getProgress()) ?? {}
+  const today = todayISOChicago()
 
   for (const q of opts.questions) {
     const slug = slugForQuestion(q)
@@ -76,11 +75,11 @@ export async function syncAndApplyProgress(opts: {
       continue
     }
 
-    if (dailyIds.has(q.id) && !isQuestionDoneForDaily(q.id, progress, repsTarget)) {
+    if (dailyIds.has(q.id) && !isQuestionDoneForDailyToday(q.id, progress, today, undefined, repsTarget)) {
       for (let i = 0; i < delta; i++) {
         const row = progress[String(q.id)]
         const todayReps = row?.daily_rep_count ?? 0
-        if (todayReps >= repsTarget || isQuestionDoneForDaily(q.id, progress, repsTarget)) break
+        if (todayReps >= repsTarget || isQuestionDoneForDailyToday(q.id, progress, today, undefined, repsTarget)) break
         await bumpDailyRep(q.id)
         if (!dailyUpdates.includes(q.id)) dailyUpdates.push(q.id)
         const fresh = await getProgress()

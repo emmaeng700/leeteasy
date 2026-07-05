@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { syncAndApplyProgress } from '@/lib/syncEngine'
 import type { DailyQueueItem } from '@/lib/dailyQueue'
-import type { Question } from '@/lib/questions'
+import type { GrindQuestion } from '@/lib/grindQuestions'
 
 export function useLcSync(opts: {
-  questions: Question[]
+  questions: GrindQuestion[]
   dailyQueue: DailyQueueItem[]
   reviewIds: number[]
   enabled?: boolean

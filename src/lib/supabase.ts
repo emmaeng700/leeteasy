@@ -1,21 +1,27 @@
 /**
- * Shared Supabase browser client — singleton to avoid multiple GoTrueClient instances.
- * Import `supabase` and `USER_ID` from here instead of calling createClient() in each page.
+ * Shared Supabase client — lazy singleton so `next build` works before env is read.
  */
-import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 let _client: SupabaseClient | null = null
 
 export function getSupabase(): SupabaseClient {
   if (!_client) {
-    _client = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    )
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    if (!url || !key) {
+      throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY')
+    }
+    _client = createClient(url, key)
   }
   return _client
 }
 
-/** Convenience re-export so callers can do `import { supabase } from '@/lib/supabase'` */
-export const supabase = getSupabase()
+/** Lazy proxy — safe to import during build; connects on first use. */
+export const supabase = new Proxy({} as SupabaseClient, {
+  get(_target, prop, receiver) {
+    return Reflect.get(getSupabase(), prop, receiver)
+  },
+})
+
 export const USER_ID = 'emmanuel'

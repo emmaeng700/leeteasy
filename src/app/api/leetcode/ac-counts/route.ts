@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { getSupabase } from '@/lib/supabase'
 import { parseLeetCodeJsonText } from '@/lib/parseLeetCodeResponse'
 import { lcFetchInit, leetCodeGraphqlHeaders, resolveLcSessionCredentials } from '@/lib/leetcodeHttp'
 
@@ -19,11 +19,6 @@ const QUERY = `query AcCountPage($offset: Int!, $limit: Int!, $slug: String) {
   }
 }`
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-)
-
 /** Accepted submission counts per problem slug from the user's LeetCode session (paginated submission history). */
 export async function POST(req: NextRequest) {
   let session = ''
@@ -37,13 +32,18 @@ export async function POST(req: NextRequest) {
   }
 
   if (!session || !csrfToken) {
-    const { data } = await supabase
-      .from('user_settings')
-      .select('lc_session, lc_csrf')
-      .eq('user_id', USER_ID)
-      .single()
-    session = session || (data?.lc_session ?? '')
-    csrfToken = csrfToken || (data?.lc_csrf ?? '')
+    try {
+      const supabase = getSupabase()
+      const { data } = await supabase
+        .from('user_settings')
+        .select('lc_session, lc_csrf')
+        .eq('user_id', USER_ID)
+        .single()
+      session = session || (data?.lc_session ?? '')
+      csrfToken = csrfToken || (data?.lc_csrf ?? '')
+    } catch {
+      /* no supabase */
+    }
   }
 
   const creds = await resolveLcSessionCredentials(session, csrfToken)

@@ -20,15 +20,15 @@ export default function HomePage() {
     setLoadError(null)
     try {
       const [
-        { loadQuestions },
+        { loadGrindQuestionsBundle },
         { getProgress, getDueReviews, getStudyPlan, getTodayDailyDoneCount },
-        { buildDailyQueue },
+        { buildDailyQueue, repsPerQuestion },
         { isDayComplete, normalizeStudyPlanRow },
         { readLcListSync },
         { todayISOChicago },
         { dailyRepsFromProgress },
       ] = await Promise.all([
-        import('@/lib/questions'),
+        import('@/lib/grindQuestions'),
         import('@/lib/db'),
         import('@/lib/dailyQueue'),
         import('@/lib/streakGoals'),
@@ -38,7 +38,7 @@ export default function HomePage() {
       ])
 
       const [questions, planRaw, progress, due, dailyDoneCount] = await Promise.all([
-        loadQuestions(),
+        loadGrindQuestionsBundle(),
         withTimeout(getStudyPlan(), 8000, null),
         withTimeout(getProgress(), 8000, {}),
         withTimeout(getDueReviews(), 8000, []),
@@ -47,13 +47,16 @@ export default function HomePage() {
 
       const progressMap = progress ?? {}
       const plan = normalizeStudyPlanRow(planRaw)
-      const repsPerQ = 2
+      const repsPerQ = repsPerQuestion()
       const dailyReps = dailyRepsFromProgress(progressMap, todayISOChicago())
 
       if (plan) {
-        const queue = buildDailyQueue(plan, questions, progressMap, repsPerQ)
-        setDailyTotal(queue.length)
-        setDailyDone(queue.filter(q => q.done).length)
+        const { items } = buildDailyQueue(plan, questions, progressMap, repsPerQ, {
+          dailyDoneTodayCount: dailyDoneCount,
+          dueReviewCount: due.length,
+        })
+        setDailyTotal(items.length)
+        setDailyDone(items.filter(q => q.done).length)
         setDayComplete(isDayComplete(plan, progressMap, due.length, {
           mode: plan.mode,
           dailyDoneTodayCount: dailyDoneCount,
