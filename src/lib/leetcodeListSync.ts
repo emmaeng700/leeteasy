@@ -40,16 +40,7 @@ export async function loadLcSessionForSync(): Promise<{ session: string; csrf: s
   let csrf = fromLocal.csrf || getCookieFromHeader(fromLocal.session, 'csrftoken')
 
   if (!session) {
-    try {
-      const d = await fetch('/api/lc-session').then(r => r.json())
-      const parsed = parseStoredLcSession(d.lc_session, d.lc_csrf)
-      session = parsed.session
-      csrf = parsed.csrf || getCookieFromHeader(parsed.session, 'csrftoken')
-      if (session) {
-        localStorage.setItem('lc_session', parsed.session)
-        if (csrf) localStorage.setItem('lc_csrf', csrf)
-      }
-    } catch { /* ignore */ }
+    return { session: '', csrf: '' }
   }
 
   return { session, csrf }
@@ -69,7 +60,7 @@ export async function fetchAcBySlug(session: string, csrf: string): Promise<{
   error?: string
 }> {
   if (!session || !csrf) {
-    return { bySlug: {}, error: 'Add your LeetCode session in Settings.' }
+    return { bySlug: {}, error: 'no_session' }
   }
 
   const res = await fetch('/api/leetcode/ac-counts', {

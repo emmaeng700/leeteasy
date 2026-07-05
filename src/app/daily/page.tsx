@@ -9,7 +9,6 @@ import { withTimeout } from '@/lib/withTimeout'
 import { formatSupabaseLoadError } from '@/lib/formatLoadError'
 import type { DailyPlanMeta, DailyQueueItem } from '@/lib/dailyQueue'
 import type { GrindQuestion } from '@/lib/grindQuestions'
-import { useLcSync } from '@/hooks/useLcSync'
 
 export default function DailyPage() {
   const [loading, setLoading] = useState(true)
@@ -19,6 +18,7 @@ export default function DailyPage() {
   const [questions, setQuestions] = useState<GrindQuestion[]>([])
   const [reviewIds, setReviewIds] = useState<number[]>([])
   const [markingId, setMarkingId] = useState<number | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
   const [noPlan, setNoPlan] = useState(false)
   const [creatingPlan, setCreatingPlan] = useState(false)
 
@@ -90,20 +90,14 @@ export default function DailyPage() {
   const doneCount = useMemo(() => queue.filter(q => q.done).length, [queue])
   const nextFocusId = useMemo(() => queue.find(q => !q.done)?.question.id, [queue])
 
-  const { syncing, lastError, runSync } = useLcSync({
-    questions,
-    dailyQueue: queue,
-    reviewIds,
-    enabled: !loading && questions.length > 0,
-    onApplied: () => {
-      toast.success('Synced from LeetCode')
-      void load()
-    },
-  })
-
-  useEffect(() => {
-    if (lastError) toast.error(lastError)
-  }, [lastError])
+  const refresh = async () => {
+    setRefreshing(true)
+    try {
+      await load()
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   const createPlan = async () => {
     setCreatingPlan(true)
@@ -188,12 +182,12 @@ export default function DailyPage() {
       action={
         <button
           type="button"
-          onClick={() => void runSync()}
-          disabled={syncing || loading}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-indigo-600 text-white disabled:opacity-50"
+          onClick={() => void refresh()}
+          disabled={refreshing || loading}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-zinc-100 text-zinc-700 disabled:opacity-50"
         >
-          <RefreshCw size={12} className={syncing ? 'animate-spin' : ''} />
-          Sync
+          <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} />
+          Refresh
         </button>
       }
     >
@@ -267,7 +261,7 @@ export default function DailyPage() {
           </div>
 
           <p className="mb-3 text-xs text-zinc-500 leading-relaxed">
-            Catch-up first, then today&apos;s block. Open in LeetCode, AC, return and tap Sync (or Mark done).
+            Catch-up first, then today&apos;s block. Open in LeetCode, AC, then tap <strong>Mark done</strong>.
           </p>
 
           {queue.length === 0 ? (

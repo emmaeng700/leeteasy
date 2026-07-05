@@ -15,6 +15,7 @@ import {
   syncLeetCodeAccepted,
   type LcListSyncState,
 } from '@/lib/leetcodeListSync'
+import LcSessionPaste from '@/components/LcSessionPaste'
 import { matchesQuestionSearch } from '@/lib/questionSearchMatch'
 import { seedAcBaselineIfNeeded } from '@/lib/syncEngine'
 import { leetCodeUrl, resolveLeetCodeSlug } from '@/lib/utils'
@@ -69,6 +70,7 @@ export default function LeetCodeListPage() {
   const [loading, setLoading] = useState(true)
   const [lcSync, setLcSync] = useState<LcListSyncState | null>(null)
   const [syncing, setSyncing] = useState(false)
+  const [showSessionPaste, setShowSessionPaste] = useState(false)
 
   const [search, setSearch] = useState('')
   const [setFilter, setSetFilter] = useState<SetFilter>('all')
@@ -82,6 +84,7 @@ export default function LeetCodeListPage() {
 
   useEffect(() => {
     setLcSync(readLcListSync())
+    if (!localStorage.getItem('lc_session')) setShowSessionPaste(true)
     void loadGrindQuestionsBundle()
       .then(rows => setQuestions(rows))
       .catch(() => setQuestions([]))
@@ -97,7 +100,12 @@ export default function LeetCodeListPage() {
       const { session, csrf } = await loadLcSessionForSync()
       const result = await syncLeetCodeAccepted(questions, session, csrf)
       if (result.error) {
-        toast.error(result.error)
+        if (result.error === 'no_session' || result.error.includes('Settings')) {
+          setShowSessionPaste(true)
+          toast.error('Paste your leetcode.com cookie below to sync AC list')
+        } else {
+          toast.error(result.error)
+        }
         return
       }
       seedAcBaselineIfNeeded(result.bySlug)
@@ -224,9 +232,16 @@ export default function LeetCodeListPage() {
             )}
 
             <p className="mt-3 text-[10px] text-zinc-500 leading-relaxed">
-              Checkmarks reflect your LeetCode AC history only. Does not change Daily or review progress.
+              Checkmarks reflect your LeetCode AC history. Daily/Reviews use Mark done instead.
             </p>
           </div>
+          <LcSessionPaste
+            open={showSessionPaste}
+            onSaved={() => {
+              setShowSessionPaste(false)
+              void runSync()
+            }}
+          />
         </aside>
 
         <div className="flex-1 min-w-0 flex flex-col gap-3">

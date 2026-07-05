@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import AppNavLink from '@/components/AppNavLink'
-import { Calendar, Brain, RefreshCw, Settings, Zap, Code2 } from 'lucide-react'
+import { Calendar, Brain, RefreshCw, Zap, Code2 } from 'lucide-react'
 import { PageShell } from '@/components/Navbar'
 
 import { withTimeout } from '@/lib/withTimeout'
@@ -113,14 +113,7 @@ export default function HomePage() {
   ], [loading, dailyDone, dailyTotal, reviewDue, lcSolved])
 
   return (
-    <PageShell
-      title="LeetEasy"
-      action={
-        <AppNavLink href="/settings" className="p-2 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100">
-          <Settings size={18} />
-        </AppNavLink>
-      }
-    >
+    <PageShell title="LeetEasy">
       {!loading && loadError && (
         <div className="mb-5 rounded-2xl px-4 py-3 text-sm border border-amber-200 bg-amber-50 text-amber-800">
           Could not load stats: {loadError}

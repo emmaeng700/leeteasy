@@ -6,22 +6,18 @@ import toast from 'react-hot-toast'
 import QuestionCard from '@/components/QuestionCard'
 import { PageShell } from '@/components/Navbar'
 import { withTimeout } from '@/lib/withTimeout'
-import type { DailyQueueItem } from '@/lib/dailyQueue'
-import type { GrindQuestion } from '@/lib/grindQuestions'
 import type { ReviewQueueItem } from '@/lib/reviewQueue'
-import { useLcSync } from '@/hooks/useLcSync'
 
 export default function ReviewPage() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [makeup, setMakeup] = useState<ReviewQueueItem[]>([])
   const [dueToday, setDueToday] = useState<ReviewQueueItem[]>([])
-  const [questions, setQuestions] = useState<GrindQuestion[]>([])
-  const [dailyQueue, setDailyQueue] = useState<DailyQueueItem[]>([])
   const [reviewCap, setReviewCap] = useState(3)
   const [scheduledCount, setScheduledCount] = useState(0)
   const [today, setToday] = useState('')
   const [markingId, setMarkingId] = useState<number | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -29,43 +25,30 @@ export default function ReviewPage() {
     try {
       const [
         { loadGrindQuestionsBundle },
-        { getDueReviews, getProgress, getStudyPlan, getUserRevisionCap, getSrScheduleWindow },
-        { buildDailyQueue, repsPerQuestion },
-        { normalizeStudyPlanRow },
+        { getDueReviews, getUserRevisionCap, getSrScheduleWindow },
         { todayISOChicago },
         { buildReviewQueue: buildRQ },
       ] = await Promise.all([
         import('@/lib/grindQuestions'),
         import('@/lib/db'),
-        import('@/lib/dailyQueue'),
-        import('@/lib/streakGoals'),
         import('@/lib/studyPlanDay'),
         import('@/lib/reviewQueue'),
       ])
       setToday(todayISOChicago())
 
-      const [qs, planRaw, progress, dueRows, cap, scheduled] = await Promise.all([
+      const [qs, dueRows, cap, scheduled] = await Promise.all([
         loadGrindQuestionsBundle(),
-        withTimeout(getStudyPlan(), 10000, null),
-        withTimeout(getProgress(), 10000, {}),
         withTimeout(getDueReviews(), 10000, []),
         withTimeout(getUserRevisionCap(), 5000, 3),
         withTimeout(getSrScheduleWindow(30), 10000, []),
       ])
 
-      setQuestions(qs)
       setReviewCap(cap)
       setScheduledCount(scheduled.length)
 
       const { makeup: m, today: t } = buildRQ(dueRows, qs)
       setMakeup(m)
       setDueToday(t)
-
-      const plan = normalizeStudyPlanRow(planRaw)
-      if (plan && progress) {
-        const { items } = buildDailyQueue(plan, qs, progress, repsPerQuestion())
-        setDailyQueue(items)
-      }
     } catch (e) {
       setLoadError(String(e))
     } finally {
@@ -76,23 +59,16 @@ export default function ReviewPage() {
   useEffect(() => { void load() }, [load])
 
   const allDue = useMemo(() => [...makeup, ...dueToday], [makeup, dueToday])
-  const reviewIds = useMemo(() => allDue.map(d => d.row.id), [allDue])
   const totalDue = allDue.length
 
-  const { syncing, lastError, runSync } = useLcSync({
-    questions,
-    dailyQueue,
-    reviewIds,
-    enabled: !loading,
-    onApplied: () => {
-      toast.success('Review synced from LeetCode')
-      void load()
-    },
-  })
-
-  useEffect(() => {
-    if (lastError) toast.error(lastError)
-  }, [lastError])
+  const refresh = async () => {
+    setRefreshing(true)
+    try {
+      await load()
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   const markReviewDone = async (id: number) => {
     setMarkingId(id)
@@ -147,12 +123,12 @@ export default function ReviewPage() {
       action={
         <button
           type="button"
-          onClick={() => void runSync()}
-          disabled={syncing || loading}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-indigo-600 text-white disabled:opacity-50"
+          onClick={() => void refresh()}
+          disabled={refreshing || loading}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-zinc-100 text-zinc-700 disabled:opacity-50"
         >
-          <RefreshCw size={12} className={syncing ? 'animate-spin' : ''} />
-          Sync
+          <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} />
+          Refresh
         </button>
       }
     >
@@ -188,7 +164,7 @@ export default function ReviewPage() {
 
           <div className="flex items-center gap-2 mb-4 text-xs text-zinc-500">
             <Brain size={14} className="text-indigo-500" />
-            <span>Tap to open in LeetCode. Sync AC or use Mark done.</span>
+            <span>Tap to open in LeetCode. Use <strong>Mark done</strong> after you AC.</span>
           </div>
 
           {totalDue === 0 ? (
