@@ -1,7 +1,7 @@
 -- LeetEasy schema (tables only). Prefer supabase/bootstrap.sql for a fresh project.
 -- If you use this file, also run rls.sql afterward.
 
--- progress ó daily reps, reviews, solved/starred
+-- progress ù daily reps, reviews, solved/starred
 CREATE TABLE IF NOT EXISTS progress (
   id SERIAL PRIMARY KEY,
   user_id TEXT NOT NULL DEFAULT 'emmanuel',
@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS progress (
   UNIQUE(user_id, question_id)
 );
 
--- study_plan ó daily queue
+-- study_plan ù daily queue
 CREATE TABLE IF NOT EXISTS study_plan (
   id SERIAL PRIMARY KEY,
   user_id TEXT NOT NULL DEFAULT 'emmanuel',
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS study_plan (
   UNIQUE(user_id)
 );
 
--- user_settings ó LC session, review cap
+-- user_settings ù LC session, review cap
 CREATE TABLE IF NOT EXISTS user_settings (
   id SERIAL PRIMARY KEY,
   user_id TEXT NOT NULL DEFAULT 'emmanuel',
@@ -44,11 +44,12 @@ CREATE TABLE IF NOT EXISTS user_settings (
   revision_cap INTEGER DEFAULT 3,
   cycle_state TEXT DEFAULT NULL,
   user_cycles TEXT DEFAULT NULL,
+  lc_list_sync JSONB DEFAULT NULL,
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(user_id)
 );
 
--- activity_log ó streak / day complete
+-- activity_log ù streak / day complete
 CREATE TABLE IF NOT EXISTS activity_log (
   id SERIAL PRIMARY KEY,
   user_id TEXT NOT NULL DEFAULT 'emmanuel',
@@ -57,7 +58,7 @@ CREATE TABLE IF NOT EXISTS activity_log (
   UNIQUE(user_id, date)
 );
 
--- daily_log ó random-mode daily quota
+-- daily_log ù random-mode daily quota
 CREATE TABLE IF NOT EXISTS daily_log (
   id SERIAL PRIMARY KEY,
   user_id TEXT NOT NULL DEFAULT 'emmanuel',
@@ -66,7 +67,7 @@ CREATE TABLE IF NOT EXISTS daily_log (
   UNIQUE(user_id, date)
 );
 
--- solved_log ó daily solved counts
+-- solved_log ù daily solved counts
 CREATE TABLE IF NOT EXISTS solved_log (
   id SERIAL PRIMARY KEY,
   user_id TEXT NOT NULL DEFAULT 'emmanuel',
@@ -75,7 +76,7 @@ CREATE TABLE IF NOT EXISTS solved_log (
   UNIQUE(user_id, date)
 );
 
--- ac_submit_counts ó LeetCode AC per question
+-- ac_submit_counts ù LeetCode AC per question
 CREATE TABLE IF NOT EXISTS ac_submit_counts (
   user_id TEXT NOT NULL DEFAULT 'emmanuel',
   question_id INTEGER NOT NULL,
@@ -84,7 +85,7 @@ CREATE TABLE IF NOT EXISTS ac_submit_counts (
   PRIMARY KEY (user_id, question_id)
 );
 
--- wrong_submit_counts ó WA per question
+-- wrong_submit_counts ù WA per question
 CREATE TABLE IF NOT EXISTS wrong_submit_counts (
   user_id TEXT NOT NULL DEFAULT 'emmanuel',
   question_id INTEGER NOT NULL,
@@ -93,7 +94,7 @@ CREATE TABLE IF NOT EXISTS wrong_submit_counts (
   PRIMARY KEY (user_id, question_id)
 );
 
--- practice_sessions ó Grind saved code
+-- practice_sessions ù Grind saved code
 CREATE TABLE IF NOT EXISTS practice_sessions (
   id SERIAL PRIMARY KEY,
   user_id TEXT NOT NULL DEFAULT 'emmanuel',
@@ -105,7 +106,7 @@ CREATE TABLE IF NOT EXISTS practice_sessions (
   UNIQUE(user_id, question_id, language)
 );
 
--- time_tracking ó Grind time per question
+-- time_tracking ù Grind time per question
 CREATE TABLE IF NOT EXISTS time_tracking (
   id SERIAL PRIMARY KEY,
   user_id TEXT NOT NULL DEFAULT 'emmanuel',

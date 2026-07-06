@@ -48,6 +48,49 @@ export function writeLcListSync(state: LcListSyncState): void {
   localStorage.setItem(LC_LIST_SYNC_KEY, JSON.stringify(state))
 }
 
+/** Write local cache + Supabase (every successful sync). */
+export async function persistLcListSync(state: LcListSyncState): Promise<void> {
+  writeLcListSync(state)
+  try {
+    await fetch('/api/leetcode/list-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(state),
+    })
+  } catch { /* local copy still valid */ }
+}
+
+function newerSync(a: LcListSyncState | null, b: LcListSyncState | null): LcListSyncState | null {
+  if (!a) return b
+  if (!b) return a
+  const at = Date.parse(a.syncedAt)
+  const bt = Date.parse(b.syncedAt)
+  if (!Number.isFinite(at) && !Number.isFinite(bt)) return b
+  if (!Number.isFinite(at)) return b
+  if (!Number.isFinite(bt)) return a
+  return bt >= at ? b : a
+}
+
+/** Merge local + Supabase; keep whichever syncedAt is latest. */
+export async function hydrateLcListSync(): Promise<LcListSyncState | null> {
+  const local = readLcListSync()
+  let remote: LcListSyncState | null = null
+  try {
+    const r = await fetch('/api/leetcode/list-sync', { cache: 'no-store' })
+    const d = await r.json() as { state?: Partial<LcListSyncState> | null }
+    remote = d.state ? normalizeSyncState(d.state) : null
+  } catch { /* ignore */ }
+
+  const winner = newerSync(local, remote)
+  if (!winner) return null
+
+  writeLcListSync(winner)
+  if (local && winner === local && (!remote || Date.parse(local.syncedAt) > Date.parse(remote.syncedAt))) {
+    void persistLcListSync(local)
+  }
+  return winner
+}
+
 export async function loadLcSessionForSync(): Promise<{ session: string; csrf: string }> {
   const fromLocal = parseStoredLcSession(
     localStorage.getItem('lc_session'),
@@ -156,7 +199,7 @@ export async function syncLeetCodeAccepted(
     grindAcCount: solvedIds.size,
     extraAcCount,
   }
-  writeLcListSync(state)
+  await persistLcListSync(state)
   return {
     solvedIds: state.solvedIds,
     bySlug,

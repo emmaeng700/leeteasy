@@ -10,6 +10,7 @@ import { loadGrindQuestionsBundle, type GrindQuestion } from '@/lib/grindQuestio
 import { grindListWithDividers } from '@/lib/grindList'
 import {
   formatSyncTime,
+  hydrateLcListSync,
   loadLcSessionForSync,
   readLcListSync,
   syncLeetCodeAccepted,
@@ -83,7 +84,9 @@ export default function LeetCodeListPage() {
   const solvedSet = useMemo(() => new Set(lcSync?.solvedIds ?? []), [lcSync])
 
   useEffect(() => {
-    const refreshSync = () => setLcSync(readLcListSync())
+    const refreshSync = () => {
+      void hydrateLcListSync().then(s => setLcSync(s))
+    }
     refreshSync()
 
     const onVisible = () => {
@@ -125,7 +128,7 @@ export default function LeetCodeListPage() {
         return
       }
       seedAcBaselineIfNeeded(result.bySlug)
-      const state = readLcListSync()
+      const state = await hydrateLcListSync()
       setLcSync(state)
       toast.success(`Synced ${result.grindAcCount}/${questions.length} grind + ${result.totalAcProblems} total AC on LeetCode`)
     } catch (e) {

@@ -4,6 +4,7 @@ import Script from 'next/script'
 import { Inter } from 'next/font/google'
 import { Toaster } from 'react-hot-toast'
 import Navbar from '@/components/Navbar'
+import LcListSyncHydrate from '@/components/LcListSyncHydrate'
 import SwRegister from '@/components/SwRegister'
 import './globals.css'
 
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
         <SwRegister />
+        <LcListSyncHydrate />
         <Suspense fallback={<nav className="sticky top-0 z-50 h-12 border-b border-zinc-200 bg-white" />}>
           <Navbar />
         </Suspense>

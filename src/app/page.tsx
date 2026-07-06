@@ -25,7 +25,7 @@ export default function HomePage() {
         { getProgress, getDueReviews, getStudyPlan, getTodayDailyDoneCount },
         { buildDailyQueue, repsPerQuestion },
         { isDayComplete },
-        { readLcListSync },
+        { readLcListSync, hydrateLcListSync },
         { todayISOChicago },
         { dailyRepsFromProgress },
         { extendPlanWithFlex },
@@ -69,7 +69,7 @@ export default function HomePage() {
       }
 
       setReviewDue(due.length)
-      const sync = readLcListSync()
+      const sync = await hydrateLcListSync()
       setLcSolved(sync?.grindAcCount ?? sync?.solvedIds.length ?? 0)
     } catch (e) {
       setLoadError(formatSupabaseLoadError(e))
