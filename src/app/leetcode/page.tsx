@@ -83,12 +83,28 @@ export default function LeetCodeListPage() {
   const solvedSet = useMemo(() => new Set(lcSync?.solvedIds ?? []), [lcSync])
 
   useEffect(() => {
-    setLcSync(readLcListSync())
-    if (!localStorage.getItem('lc_session')) setShowSessionPaste(true)
+    const refreshSync = () => setLcSync(readLcListSync())
+    refreshSync()
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refreshSync()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('pageshow', refreshSync)
+
+    void loadLcSessionForSync().then(({ session }) => {
+      if (!session) setShowSessionPaste(true)
+    })
+
     void loadGrindQuestionsBundle()
       .then(rows => setQuestions(rows))
       .catch(() => setQuestions([]))
       .finally(() => setLoading(false))
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('pageshow', refreshSync)
+    }
   }, [])
 
   const solvedFn = useCallback((q: GrindQuestion) => solvedSet.has(q.id), [solvedSet])
@@ -100,9 +116,9 @@ export default function LeetCodeListPage() {
       const { session, csrf } = await loadLcSessionForSync()
       const result = await syncLeetCodeAccepted(questions, session, csrf)
       if (result.error) {
-        if (result.error === 'no_session' || result.error.includes('Settings')) {
+        if (result.error === 'no_session') {
           setShowSessionPaste(true)
-          toast.error('Paste your leetcode.com cookie below to sync AC list')
+          toast.error('Save your LeetCode cookie below, then sync again')
         } else {
           toast.error(result.error)
         }

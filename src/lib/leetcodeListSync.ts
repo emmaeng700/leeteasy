@@ -57,7 +57,29 @@ export async function loadLcSessionForSync(): Promise<{ session: string; csrf: s
   let csrf = fromLocal.csrf || getCookieFromHeader(fromLocal.session, 'csrftoken')
 
   if (!session) {
-    return { session: '', csrf: '' }
+    try {
+      const d = await fetch('/api/lc-session').then(r => r.json()) as { lc_session?: string; lc_csrf?: string }
+      const parsed = parseStoredLcSession(d.lc_session, d.lc_csrf)
+      session = parsed.session
+      csrf = parsed.csrf || getCookieFromHeader(parsed.session, 'csrftoken')
+      if (session) {
+        localStorage.setItem('lc_session', parsed.session)
+        if (csrf) localStorage.setItem('lc_csrf', csrf)
+      }
+    } catch { /* ignore */ }
+  }
+
+  if (session && !csrf) {
+    try {
+      const r = await fetch('/api/lc-csrf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session }),
+      })
+      const d = await r.json() as { csrf?: string }
+      csrf = d.csrf ?? ''
+      if (csrf) localStorage.setItem('lc_csrf', csrf)
+    } catch { /* ignore */ }
   }
 
   return { session, csrf }
