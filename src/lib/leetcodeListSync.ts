@@ -7,6 +7,29 @@ export type LcListSyncState = {
   syncedAt: string
   solvedIds: number[]
   bySlug: Record<string, number>
+  /** Unique problems with AC on LeetCode (all slugs from submission history). */
+  totalAcProblems: number
+  /** AC problems that match the grind list (Sets 1-3). */
+  grindAcCount: number
+  /** AC on LeetCode but not in the grind list. */
+  extraAcCount: number
+}
+
+function normalizeSyncState(parsed: Partial<LcListSyncState>): LcListSyncState | null {
+  if (!parsed?.syncedAt) return null
+  const bySlug = parsed.bySlug ?? {}
+  const solvedIds = Array.isArray(parsed.solvedIds) ? parsed.solvedIds : []
+  const totalAcProblems = parsed.totalAcProblems ?? Object.values(bySlug).filter(c => c >= 1).length
+  const grindAcCount = parsed.grindAcCount ?? solvedIds.length
+  const extraAcCount = parsed.extraAcCount ?? Math.max(0, totalAcProblems - grindAcCount)
+  return {
+    syncedAt: parsed.syncedAt,
+    solvedIds,
+    bySlug,
+    totalAcProblems,
+    grindAcCount,
+    extraAcCount,
+  }
 }
 
 export function readLcListSync(): LcListSyncState | null {
@@ -14,13 +37,7 @@ export function readLcListSync(): LcListSyncState | null {
   try {
     const raw = localStorage.getItem(LC_LIST_SYNC_KEY)
     if (!raw) return null
-    const parsed = JSON.parse(raw) as LcListSyncState
-    if (!parsed?.syncedAt) return null
-    return {
-      syncedAt: parsed.syncedAt,
-      solvedIds: Array.isArray(parsed.solvedIds) ? parsed.solvedIds : [],
-      bySlug: parsed.bySlug ?? {},
-    }
+    return normalizeSyncState(JSON.parse(raw) as Partial<LcListSyncState>)
   } catch {
     return null
   }
@@ -80,25 +97,51 @@ export async function syncLeetCodeAccepted(
   questions: Array<{ id: number; slug: string }>,
   session: string,
   csrf: string,
-): Promise<{ solvedIds: number[]; bySlug: Record<string, number>; error?: string }> {
+): Promise<{
+  solvedIds: number[]
+  bySlug: Record<string, number>
+  totalAcProblems: number
+  grindAcCount: number
+  extraAcCount: number
+  error?: string
+}> {
   const { bySlug, error } = await fetchAcBySlug(session, csrf)
-  if (error) return { solvedIds: [], bySlug: {}, error }
+  if (error) {
+    return { solvedIds: [], bySlug: {}, totalAcProblems: 0, grindAcCount: 0, extraAcCount: 0, error }
+  }
 
   const slugToId = buildSlugToIdMap(questions)
+  const grindSlugs = new Set(slugToId.keys())
   const solvedIds = new Set<number>()
+
   for (const [slug, count] of Object.entries(bySlug)) {
     if (count < 1) continue
     const id = slugToId.get(slug)
-    if (id != null) solvedIds.add(id)
+    if (id != null) {
+      solvedIds.add(id)
+    }
   }
+
+  const acSlugs = Object.entries(bySlug).filter(([, c]) => c >= 1).map(([s]) => s)
+  const totalAcProblems = acSlugs.length
+  const extraAcCount = acSlugs.filter(s => !grindSlugs.has(s)).length
 
   const state: LcListSyncState = {
     syncedAt: new Date().toISOString(),
     solvedIds: Array.from(solvedIds).sort((a, b) => a - b),
     bySlug,
+    totalAcProblems,
+    grindAcCount: solvedIds.size,
+    extraAcCount,
   }
   writeLcListSync(state)
-  return { solvedIds: state.solvedIds, bySlug }
+  return {
+    solvedIds: state.solvedIds,
+    bySlug,
+    totalAcProblems,
+    grindAcCount: state.grindAcCount,
+    extraAcCount,
+  }
 }
 
 export function formatSyncTime(iso: string): string {

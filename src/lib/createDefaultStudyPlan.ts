@@ -1,4 +1,9 @@
 import type { GrindQuestion } from './grindQuestions'
+import {
+  dayToStartIndex,
+  startDateForClaimedDay,
+  writePlanFlexLocal,
+} from './planFlex'
 import { todayISOChicago } from './studyPlanDay'
 
 /** 727-question grind bundle order (same rounds as LeetMastery studyOrder). */
@@ -11,8 +16,10 @@ export type DefaultPlanOpts = {
   repsPerQ?: number
   reviewStartDays?: number
   revisionCap?: number
-  mode?: 'strict' | 'random'
+  mode?: 'strict' | 'random' | 'flex'
   startDate?: string
+  planStartIndex?: number
+  claimedDayIndex?: number
 }
 
 export async function createDefaultStudyPlan(
@@ -24,13 +31,17 @@ export async function createDefaultStudyPlan(
   const repsPerQ = opts.repsPerQ ?? 2
   const reviewStartDays = opts.reviewStartDays ?? 14
   const revisionCap = opts.revisionCap ?? 3
-  const mode = opts.mode ?? 'strict'
-  const startDate = opts.startDate ?? todayISOChicago()
+  const mode = opts.mode ?? 'flex'
+  const planStartIndex = opts.planStartIndex ?? 0
+  const claimedDayIndex = opts.claimedDayIndex ?? 0
+  const startDate = opts.startDate ?? startDateForClaimedDay(claimedDayIndex)
 
   const order = grindStudyOrder(questions)
   if (order.length === 0) {
     return { ok: false, error: 'Question list not loaded.' }
   }
+
+  writePlanFlexLocal({ planStartIndex, claimedDayIndex })
 
   const ok = await saveStudyPlan({
     start_date: startDate,
@@ -39,6 +50,8 @@ export async function createDefaultStudyPlan(
     lock_code: '',
     mode,
     review_start_days: reviewStartDays,
+    plan_start_index: planStartIndex,
+    claimed_day_index: claimedDayIndex,
   })
 
   if (!ok) {
@@ -67,10 +80,8 @@ export async function ensureStudyPlan(
   questions: GrindQuestion[],
 ): Promise<{ created: boolean; error?: string }> {
   const { getStudyPlan } = await import('./db')
-  const { normalizeStudyPlanRow } = await import('./streakGoals')
-  const existing = normalizeStudyPlanRow(await getStudyPlan())
+  const { extendPlanWithFlex } = await import('./planFlex')
+  const existing = extendPlanWithFlex(await getStudyPlan())
   if (existing) return { created: false }
-  const result = await createDefaultStudyPlan(questions)
-  if (!result.ok) return { created: false, error: result.error }
-  return { created: true }
+  return { created: false }
 }

@@ -147,9 +147,11 @@ export function isPlanDayComplete(
   today = todayISOChicago(),
   dailyReps?: Record<string, number>,
   repsPerQ = 2,
+  opts?: { flexMode?: boolean },
 ): boolean {
   if (questionIds.length === 0) return true
-  if (dayIndex < calendarDiffDays) {
+  const flexMode = opts?.flexMode ?? false
+  if (dayIndex < calendarDiffDays && !flexMode) {
     return questionIds.every(id => !!progress[String(id)]?.solved)
   }
   return questionIds.every(id =>
@@ -222,6 +224,11 @@ export function isActiveDailyBlockComplete(
   if (mode === 'random') {
     const count = opts?.dailyDoneTodayCount ?? opts?.solvedTodayCount ?? 0
     return count >= plan.per_day
+  }
+
+  if (mode === 'flex') {
+    const count = opts?.dailyDoneTodayCount ?? opts?.solvedTodayCount ?? 0
+    return count >= 1
   }
 
   const ids = getActiveDayQuestionIds(plan, progress, { dailyReps: opts?.dailyReps, repsPerQ, today })

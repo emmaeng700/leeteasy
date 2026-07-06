@@ -24,10 +24,11 @@ export default function HomePage() {
         { loadGrindQuestionsBundle },
         { getProgress, getDueReviews, getStudyPlan, getTodayDailyDoneCount },
         { buildDailyQueue, repsPerQuestion },
-        { isDayComplete, normalizeStudyPlanRow },
+        { isDayComplete },
         { readLcListSync },
         { todayISOChicago },
         { dailyRepsFromProgress },
+        { extendPlanWithFlex },
       ] = await Promise.all([
         import('@/lib/grindQuestions'),
         import('@/lib/db'),
@@ -36,6 +37,7 @@ export default function HomePage() {
         import('@/lib/leetcodeListSync'),
         import('@/lib/studyPlanDay'),
         import('@/lib/dailyCompletion'),
+        import('@/lib/planFlex'),
       ])
 
       const [questions, planRaw, progress, due, dailyDoneCount] = await Promise.all([
@@ -47,7 +49,7 @@ export default function HomePage() {
       ])
 
       const progressMap = progress ?? {}
-      const plan = normalizeStudyPlanRow(planRaw)
+      const plan = extendPlanWithFlex(planRaw)
       const repsPerQ = repsPerQuestion()
       const dailyReps = dailyRepsFromProgress(progressMap, todayISOChicago())
 
@@ -67,7 +69,8 @@ export default function HomePage() {
       }
 
       setReviewDue(due.length)
-      setLcSolved(readLcListSync()?.solvedIds.length ?? 0)
+      const sync = readLcListSync()
+      setLcSolved(sync?.grindAcCount ?? sync?.solvedIds.length ?? 0)
     } catch (e) {
       setLoadError(formatSupabaseLoadError(e))
     } finally {

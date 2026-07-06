@@ -111,7 +111,7 @@ export default function LeetCodeListPage() {
       seedAcBaselineIfNeeded(result.bySlug)
       const state = readLcListSync()
       setLcSync(state)
-      toast.success(`Synced ${result.solvedIds.length} AC from leetcode.com`)
+      toast.success(`Synced ${result.grindAcCount}/${questions.length} grind + ${result.totalAcProblems} total AC on LeetCode`)
     } catch (e) {
       toast.error(String(e))
     } finally {
@@ -194,6 +194,24 @@ export default function LeetCodeListPage() {
               </div>
             </div>
             <ProgressRing solved={stats.solved} total={stats.total} />
+            {lcSync && lcSync.totalAcProblems > 0 && (
+              <div className="mt-3 rounded-xl border border-orange-100 bg-orange-50/80 px-3 py-2.5 text-[11px] space-y-1">
+                <div className="flex justify-between font-semibold text-orange-900">
+                  <span>LeetCode total AC</span>
+                  <span className="tabular-nums">{lcSync.totalAcProblems}</span>
+                </div>
+                <div className="flex justify-between text-orange-800/80">
+                  <span>In grind list</span>
+                  <span className="tabular-nums">{lcSync.grindAcCount}/{questions.length}</span>
+                </div>
+                {lcSync.extraAcCount > 0 && (
+                  <div className="flex justify-between text-orange-700/70">
+                    <span>Outside grind</span>
+                    <span className="tabular-nums">+{lcSync.extraAcCount}</span>
+                  </div>
+                )}
+              </div>
+            )}
             <div className="mt-4 space-y-2 text-xs">
               <div className="flex justify-between">
                 <span className="text-green-600 font-semibold">Easy</span>

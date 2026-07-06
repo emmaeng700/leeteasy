@@ -193,6 +193,50 @@ export async function setDailyRep(questionId: number, count: number): Promise<{ 
   return { ok: true, error: null }
 }
 
+/**
+ * Mark done on Daily: reps + daily log + schedule SR review for Sets 1-3 on first completion.
+ */
+export async function markDailyQuestionDone(
+  questionId: number,
+  repsTarget: number,
+  questionSet?: number,
+): Promise<{ ok: boolean; reviewScheduled: boolean; advancedDay?: number; error?: string | null }> {
+  const repResult = await setDailyRep(questionId, repsTarget)
+  if (!repResult.ok) return { ok: false, reviewScheduled: false, error: repResult.error }
+
+  await markDailyCompleteToday(questionId)
+
+  let reviewScheduled = false
+  if (questionSet != null && questionSet >= 1 && questionSet <= 3) {
+    const { data: existing } = await supabase
+      .from('progress')
+      .select('solved')
+      .eq('user_id', USER_ID)
+      .eq('question_id', questionId)
+      .maybeSingle()
+
+    if (!existing?.solved) {
+      const err = await updateProgress(questionId, { solved: true })
+      reviewScheduled = !err
+    }
+  }
+
+  try {
+    const { extendPlanWithFlex } = await import('./planFlex')
+    const { advancePlanDayIfTodayBlockDone, repsPerQuestion } = await import('./dailyQueue')
+    const plan = extendPlanWithFlex(await getStudyPlan())
+    const freshProgress = (await getProgress()) ?? {}
+    if (plan) {
+      const adv = await advancePlanDayIfTodayBlockDone(plan, freshProgress, repsPerQuestion())
+      if (adv.advanced && adv.newDayNumber) {
+        return { ok: true, reviewScheduled, advancedDay: adv.newDayNumber }
+      }
+    }
+  } catch { /* non-fatal */ }
+
+  return { ok: true, reviewScheduled }
+}
+
 /** Merge localStorage rep counts into DB (runs each Daily load — idempotent). */
 export async function syncDailyRepsFromLocal(): Promise<void> {
   if (typeof window === 'undefined') return
@@ -755,13 +799,33 @@ export async function saveStudyPlan(plan: {
   lock_code: string
   mode?: string
   review_start_days?: number
+  plan_start_index?: number
+  claimed_day_index?: number
 }) {
-  const { error } = await supabase.from('study_plan').upsert({
+  const row: Record<string, unknown> = {
     user_id: USER_ID,
-    ...plan,
+    start_date: plan.start_date,
+    per_day: plan.per_day,
+    question_order: plan.question_order,
+    lock_code: plan.lock_code,
+    mode: plan.mode ?? 'flex',
+    review_start_days: plan.review_start_days ?? 14,
     created_at: new Date().toISOString(),
-  }, { onConflict: 'user_id' })
-  if (error) console.error('[db] saveStudyPlan:', error.message)
+  }
+  if (plan.plan_start_index != null) row.plan_start_index = plan.plan_start_index
+  if (plan.claimed_day_index != null) row.claimed_day_index = plan.claimed_day_index
+
+  const { error } = await supabase.from('study_plan').upsert(row, { onConflict: 'user_id' })
+  if (error) {
+    if (isMissingColumnError(error.message)) {
+      delete row.plan_start_index
+      delete row.claimed_day_index
+      const { error: retryErr } = await supabase.from('study_plan').upsert(row, { onConflict: 'user_id' })
+      if (retryErr) console.error('[db] saveStudyPlan:', retryErr.message)
+      return !retryErr
+    }
+    console.error('[db] saveStudyPlan:', error.message)
+  }
   return !error
 }
 
