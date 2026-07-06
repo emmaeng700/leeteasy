@@ -62,14 +62,12 @@ export default function DailyPage() {
 
       if (plan && progress) {
         const reps = repsPerQuestion()
-        const { advancePlanDayChain, isTodayPlanBlockDone } = await import('@/lib/dailyQueue')
-        if (isTodayPlanBlockDone(plan, progress, reps)) {
-          const chain = await advancePlanDayChain(plan, progress, reps)
-          if (chain.daysAdvanced > 0) {
-            plan = extendPlanWithFlex(await getStudyPlan())
-            if (plan) {
-              setPlanTodayDay(plan.claimedDayIndex + 1)
-            }
+        const { rollPlanForwardAfterWork } = await import('@/lib/dailyQueue')
+        const roll = await rollPlanForwardAfterWork(plan, progress, reps)
+        if (roll.daysMoved > 0) {
+          plan = extendPlanWithFlex(await getStudyPlan()) ?? roll.plan
+          if (plan) {
+            setPlanTodayDay(plan.claimedDayIndex + 1)
           }
         }
       }
@@ -358,7 +356,7 @@ export default function DailyPage() {
           </div>
 
           <p className="mb-3 text-xs text-zinc-500 leading-relaxed">
-            Mark both suggested questions done to auto-advance, or tap <strong>Next plan day</strong>. Bell icon = email setup.
+            Mark both suggested questions done and the next pair appears automatically. Already AC on LeetCode? Sync on the LeetCode tab — those days skip. Tap <strong>Add more</strong> to pull ahead anytime.
           </p>
 
           {queue.length === 0 ? (
@@ -370,10 +368,15 @@ export default function DailyPage() {
             ) : (
               <p className="text-sm text-zinc-500">No questions scheduled.</p>
             )
-          ) : meta.dayComplete && todayBlockDone && meta.hasMore && !meta.planComplete ? (
-            <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-8 text-center">
-              <p className="font-bold text-indigo-900">Plan day {meta.dayNumber} done</p>
-              <p className="mt-1 text-xs text-indigo-700 mb-4">Today&apos;s block + reviews are clear. Keep going?</p>
+          ) : meta.dayComplete && !(meta.hasMore && todayBlockDone) ? (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-8 text-center">
+              <p className="font-bold text-emerald-800">All done for today</p>
+              <p className="mt-1 text-xs text-emerald-600">Nice work.</p>
+            </div>
+          ) : todayBlockDone && meta.hasMore && !meta.planComplete ? (
+            <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-6 text-center mb-4">
+              <p className="font-bold text-indigo-900">Plan day {meta.dayNumber} complete</p>
+              <p className="mt-1 text-xs text-indigo-700 mb-3">Loading next pair… or tap below.</p>
               <button
                 type="button"
                 onClick={() => void goNextPlanDay()}
@@ -382,11 +385,6 @@ export default function DailyPage() {
                 <ChevronRight size={16} />
                 Continue to plan day {meta.dayNumber + 1}
               </button>
-            </div>
-          ) : meta.dayComplete ? (
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-8 text-center">
-              <p className="font-bold text-emerald-800">All done for today</p>
-              <p className="mt-1 text-xs text-emerald-600">Nice work.</p>
             </div>
           ) : (
             <>

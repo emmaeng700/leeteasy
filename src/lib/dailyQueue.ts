@@ -9,6 +9,7 @@ import {
 import { isActiveDailyBlockComplete } from './streakGoals'
 import type { FlexStudyPlan } from './planFlex'
 import { readPlanFlexLocal } from './planFlex'
+import { readLcListSync } from './leetcodeListSync'
 import { diffDaysSincePlanStart, todayISOChicago } from './studyPlanDay'
 
 export type StudyPlan = FlexStudyPlan
@@ -110,7 +111,108 @@ export function getPushedForwardIds(
   return result
 }
 
-/** Whether another plan-day block exists after activeDay. */
+function getLcSolvedIdSet(): Set<number> {
+  return new Set(readLcListSync()?.solvedIds ?? [])
+}
+
+/** Plan-day block where every question is already AC on LeetCode or marked solved in app. */
+export function isPlanDayBlockLcOrSolved(
+  plan: StudyPlan,
+  dayIndex: number,
+  progress: Record<string, DailyProgressSlice | undefined>,
+  lcSolved?: Set<number>,
+): boolean {
+  const ids = getDayQuestionIds(plan, dayIndex)
+  if (ids.length === 0) return true
+  const lc = lcSolved ?? getLcSolvedIdSet()
+  return ids.every(id => lc.has(id) || !!progress[String(id)]?.solved)
+}
+
+/**
+ * Skip plan days whose questions are already AC on LeetCode (after sync) or solved in-app.
+ */
+export async function skipLcSolvedPlanDays(
+  plan: StudyPlan,
+  progress: Record<string, DailyProgressSlice | undefined>,
+): Promise<{ daysSkipped: number; plan: StudyPlan }> {
+  const lcSolved = getLcSolvedIdSet()
+  if (lcSolved.size === 0) return { daysSkipped: 0, plan }
+
+  const { persistPlanFlex } = await import('./planFlex')
+  let current = plan
+  let daysSkipped = 0
+
+  for (let i = 0; i < 200; i++) {
+    const activeDay = getClaimedDayIndex(current)
+    if (!isPlanDayBlockLcOrSolved(current, activeDay, progress, lcSolved)) break
+    if (!hasNextPlanDay(current, activeDay)) break
+
+    const newClaimed = activeDay + 1
+    await persistPlanFlex(
+      { planStartIndex: current.planStartIndex ?? 0, claimedDayIndex: newClaimed },
+      current.per_day,
+    )
+    current = { ...current, claimedDayIndex: newClaimed }
+    daysSkipped++
+  }
+
+  return { daysSkipped, plan: current }
+}
+
+/**
+ * After marking today's block done: advance plan day, then skip LC/solved blocks.
+ * Call on Daily load too so the next unsolved pair appears without tapping Next.
+ */
+export async function rollPlanForwardAfterWork(
+  plan: StudyPlan,
+  progress: Record<string, DailyProgressSlice | undefined>,
+  repsPerQ: number,
+): Promise<{ daysMoved: number; finalDayNumber: number; plan: StudyPlan }> {
+  let current = plan
+  let daysMoved = 0
+  const lcSolved = getLcSolvedIdSet()
+
+  for (let i = 0; i < 100; i++) {
+    let moved = false
+
+    while (isPlanDayBlockLcOrSolved(current, getClaimedDayIndex(current), progress, lcSolved)) {
+      const activeDay = getClaimedDayIndex(current)
+      if (!hasNextPlanDay(current, activeDay)) {
+        return { daysMoved, finalDayNumber: activeDay + 1, plan: current }
+      }
+      const newClaimed = activeDay + 1
+      const { persistPlanFlex } = await import('./planFlex')
+      await persistPlanFlex(
+        { planStartIndex: current.planStartIndex ?? 0, claimedDayIndex: newClaimed },
+        current.per_day,
+      )
+      current = { ...current, claimedDayIndex: newClaimed }
+      daysMoved++
+      moved = true
+    }
+
+    if (!isTodayPlanBlockDone(current, progress, repsPerQ)) break
+
+    const activeDay = getClaimedDayIndex(current)
+    if (!hasNextPlanDay(current, activeDay)) break
+
+    const result = await advancePlanDayIfTodayBlockDone(current, progress, repsPerQ)
+    if (!result.advanced || !result.newDayNumber) break
+
+    current = { ...current, claimedDayIndex: result.newDayNumber - 1 }
+    daysMoved++
+    moved = true
+
+    if (!moved) break
+  }
+
+  return {
+    daysMoved,
+    finalDayNumber: getClaimedDayIndex(current) + 1,
+    plan: current,
+  }
+}
+
 export function hasNextPlanDay(plan: StudyPlan, activeDay = getClaimedDayIndex(plan)): boolean {
   return getNextPlanQuestionIds(plan, activeDay, 1).length > 0
 }
@@ -237,12 +339,15 @@ export function buildDailyQueue(
 
   const makeupPending = items.filter(i => i.kind === 'makeup' && !i.done).length
   const todayPending = items.filter(i => (i.kind === 'today' || i.kind === 'extra') && !i.done).length
-  const dailyBlockDone = isActiveDailyBlockComplete(plan, progress, {
-    mode: plan.mode,
-    dailyDoneTodayCount: opts?.dailyDoneTodayCount ?? 0,
-    dailyReps,
-    repsPerQ,
-  })
+  const dailyBlockDone =
+    (plan.mode ?? 'flex') === 'flex'
+      ? isTodayPlanBlockDone(plan, progress, repsPerQ)
+      : isActiveDailyBlockComplete(plan, progress, {
+          mode: plan.mode,
+          dailyDoneTodayCount: opts?.dailyDoneTodayCount ?? 0,
+          dailyReps,
+          repsPerQ,
+        })
 
   const hasMore = !planComplete && hasNextPlanDay(plan, activeDay)
 
@@ -284,10 +389,9 @@ export async function advancePlanDayIfTodayBlockDone(
   const today = todayISOChicago()
   const dailyReps = dailyRepsFromProgress(progress, today)
   const activeDay = getClaimedDayIndex(plan)
-  const lastDay = getLastPlanDayIndex(plan)
   const todayIds = getDayQuestionIds(plan, activeDay)
 
-  if (todayIds.length === 0 || activeDay >= lastDay) return { advanced: false }
+  if (todayIds.length === 0 || !hasNextPlanDay(plan, activeDay)) return { advanced: false }
   const allDone = todayIds.every(id =>
     isQuestionDoneForDailyToday(id, progress, today, dailyReps, repsPerQ),
   )

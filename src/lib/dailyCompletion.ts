@@ -212,6 +212,8 @@ export function isActiveDailyBlockComplete(
     dailyDoneTodayCount?: number
     /** @deprecated use dailyDoneTodayCount */
     solvedTodayCount?: number
+    /** Flex mode: today's suggested question ids (claimed plan day). */
+    flexTodayIds?: number[]
     dailyReps?: Record<string, number>
     repsPerQ?: number
     today?: string
@@ -227,8 +229,15 @@ export function isActiveDailyBlockComplete(
   }
 
   if (mode === 'flex') {
+    const ids = opts?.flexTodayIds
+    if (ids && ids.length > 0) {
+      const dailyReps = opts?.dailyReps ?? dailyRepsFromProgress(progress, today)
+      return ids.every(id =>
+        isQuestionDoneForDailyToday(id, progress, today, dailyReps, repsPerQ),
+      )
+    }
     const count = opts?.dailyDoneTodayCount ?? opts?.solvedTodayCount ?? 0
-    return count >= 1
+    return count >= plan.per_day
   }
 
   const ids = getActiveDayQuestionIds(plan, progress, { dailyReps: opts?.dailyReps, repsPerQ, today })
