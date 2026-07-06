@@ -8,6 +8,7 @@ import {
 } from './dailyCompletion'
 import { isActiveDailyBlockComplete } from './streakGoals'
 import type { FlexStudyPlan } from './planFlex'
+import { readPlanFlexLocal } from './planFlex'
 import { diffDaysSincePlanStart, todayISOChicago } from './studyPlanDay'
 
 export type StudyPlan = FlexStudyPlan
@@ -107,6 +108,11 @@ export function getPushedForwardIds(
     }
   }
   return result
+}
+
+/** Whether another plan-day block exists after activeDay. */
+export function hasNextPlanDay(plan: StudyPlan, activeDay = getClaimedDayIndex(plan)): boolean {
+  return getNextPlanQuestionIds(plan, activeDay, 1).length > 0
 }
 
 export function getActiveDayIndex(
@@ -238,8 +244,7 @@ export function buildDailyQueue(
     repsPerQ,
   })
 
-  const nextBlockStart = (activeDay + 1) * plan.per_day
-  const hasMore = !planComplete && activeDay < lastDay && nextBlockStart < plan.question_order.length
+  const hasMore = !planComplete && hasNextPlanDay(plan, activeDay)
 
   return {
     items,
@@ -341,21 +346,29 @@ export async function goToNextPlanDay(
   progress: Record<string, DailyProgressSlice | undefined>,
   repsPerQ: number,
 ): Promise<{ ok: boolean; newDayNumber?: number; error?: string }> {
-  if (!isTodayPlanBlockDone(plan, progress, repsPerQ)) {
+  const local = readPlanFlexLocal()
+  const effectivePlan: StudyPlan = {
+    ...plan,
+    claimedDayIndex:
+      local.claimedDayIndex > 0
+        ? local.claimedDayIndex
+        : (plan.claimedDayIndex ?? 0),
+  }
+
+  if (!isTodayPlanBlockDone(effectivePlan, progress, repsPerQ)) {
     return { ok: false, error: 'Mark all suggested questions done first' }
   }
 
-  const activeDay = getClaimedDayIndex(plan)
-  const lastDay = getLastPlanDayIndex(plan)
-  if (activeDay >= lastDay) {
+  const activeDay = getClaimedDayIndex(effectivePlan)
+  if (!hasNextPlanDay(effectivePlan, activeDay)) {
     return { ok: false, error: 'Already on the last plan day' }
   }
 
   const newClaimed = activeDay + 1
   const { persistPlanFlex } = await import('./planFlex')
   await persistPlanFlex(
-    { planStartIndex: plan.planStartIndex ?? 0, claimedDayIndex: newClaimed },
-    plan.per_day,
+    { planStartIndex: effectivePlan.planStartIndex ?? 0, claimedDayIndex: newClaimed },
+    effectivePlan.per_day,
   )
 
   return { ok: true, newDayNumber: newClaimed + 1 }

@@ -27,25 +27,32 @@ export function diffDaysSincePlanStart(planStartDate: string): number {
 }
 
 /** Supabase may return `question_order` as number[] or a JSON string. */
-export function normalizeStudyPlanRow(raw: unknown): StudyPlanForStreak | null {
-  if (!raw || typeof raw !== 'object') return null
-  const p = raw as Record<string, unknown>
-  let qo = p.question_order
+export function parseQuestionOrder(raw: unknown): number[] {
+  let qo = raw
   if (typeof qo === 'string') {
     try {
       qo = JSON.parse(qo)
     } catch {
-      return null
+      return []
     }
   }
-  if (!Array.isArray(qo) || qo.length === 0) return null
+  if (!Array.isArray(qo)) return []
+  return qo.map(n => Number(n)).filter(n => Number.isFinite(n) && n > 0)
+}
+
+/** Supabase may return `question_order` as number[] or a JSON string. */
+export function normalizeStudyPlanRow(raw: unknown): StudyPlanForStreak | null {
+  if (!raw || typeof raw !== 'object') return null
+  const p = raw as Record<string, unknown>
+  const qo = parseQuestionOrder(p.question_order)
+  if (qo.length === 0) return null
   const perDay = Number(p.per_day)
   const startDate = String(p.start_date ?? '')
   if (!startDate || !Number.isFinite(perDay) || perDay < 1) return null
   return {
     start_date: startDate,
     per_day: perDay,
-    question_order: qo.map(n => Number(n)),
+    question_order: qo,
     mode: typeof p.mode === 'string' ? p.mode : undefined,
   }
 }

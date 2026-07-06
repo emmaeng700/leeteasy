@@ -3,7 +3,7 @@
  * Pre-start questions become catch-up. Stored in DB when columns exist, else localStorage.
  */
 
-import type { StudyPlanForStreak } from './studyPlanDay'
+import { parseQuestionOrder, type StudyPlanForStreak } from './studyPlanDay'
 
 export type PlanFlexConfig = {
   planStartIndex: number
@@ -44,11 +44,8 @@ export function writePlanFlexLocal(cfg: PlanFlexConfig): void {
 export function extendPlanWithFlex(raw: unknown): FlexStudyPlan | null {
   if (!raw || typeof raw !== 'object') return null
   const p = raw as Record<string, unknown>
-  let qo = p.question_order
-  if (typeof qo === 'string') {
-    try { qo = JSON.parse(qo) } catch { return null }
-  }
-  if (!Array.isArray(qo) || qo.length === 0) return null
+  const qo = parseQuestionOrder(p.question_order)
+  if (qo.length === 0) return null
   const perDay = Number(p.per_day)
   const startDate = String(p.start_date ?? '')
   if (!startDate || !Number.isFinite(perDay) || perDay < 1) return null
@@ -56,20 +53,28 @@ export function extendPlanWithFlex(raw: unknown): FlexStudyPlan | null {
   const local = readPlanFlexLocal()
   const dbStart = Number(p.plan_start_index)
   const dbClaimed = Number(p.claimed_day_index)
+  const lastDay = Math.floor((qo.length - 1) / perDay)
 
   const planStartIndex =
     Number.isFinite(dbStart) && dbStart >= 0 ? dbStart : local.planStartIndex
   const dbClaimedValid = Number.isFinite(dbClaimed) && dbClaimed >= 0 ? dbClaimed : null
-  // Local can be ahead when DB flex columns are missing or still at default 0.
-  const claimedDayIndex =
-    dbClaimedValid != null
-      ? Math.max(local.claimedDayIndex, dbClaimedValid)
-      : local.claimedDayIndex
+
+  // Local is updated on every advance; DB may be stale or wrongly at the last day.
+  let claimedDayIndex = local.claimedDayIndex
+  if (
+    claimedDayIndex === 0 &&
+    dbClaimedValid != null &&
+    dbClaimedValid > 0 &&
+    dbClaimedValid < lastDay
+  ) {
+    claimedDayIndex = dbClaimedValid
+    writePlanFlexLocal({ planStartIndex, claimedDayIndex })
+  }
 
   return {
     start_date: startDate,
     per_day: perDay,
-    question_order: qo.map(n => Number(n)),
+    question_order: qo,
     mode: 'flex',
     review_start_days: Number(p.review_start_days) || 14,
     planStartIndex,
@@ -113,12 +118,13 @@ export async function persistPlanFlex(cfg: PlanFlexConfig, perDay: number): Prom
     const { saveStudyPlan, getStudyPlan } = await import('./db')
     const existing = await getStudyPlan()
     if (!existing) return true
-    const claimed = clampClaimedDay(cfg.claimedDayIndex, (existing.question_order as number[]).length, perDay)
+    const orderLen = parseQuestionOrder(existing.question_order).length
+    const claimed = clampClaimedDay(cfg.claimedDayIndex, orderLen, perDay)
     writePlanFlexLocal({ planStartIndex: cfg.planStartIndex, claimedDayIndex: claimed })
     void saveStudyPlan({
       start_date: startDateForClaimedDay(claimed),
       per_day: existing.per_day as number,
-      question_order: existing.question_order as number[],
+      question_order: parseQuestionOrder(existing.question_order),
       lock_code: String(existing.lock_code ?? ''),
       mode: 'flex',
       review_start_days: Number(existing.review_start_days) || 14,

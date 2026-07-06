@@ -225,17 +225,17 @@ export async function markDailyQuestionDone(
 
   try {
     const { extendPlanWithFlex } = await import('./planFlex')
-    const { advancePlanDayChain, repsPerQuestion } = await import('./dailyQueue')
+    const { advancePlanDayIfTodayBlockDone, repsPerQuestion } = await import('./dailyQueue')
     const plan = extendPlanWithFlex(await getStudyPlan())
     const freshProgress = (await getProgress()) ?? {}
     if (plan) {
-      const chain = await advancePlanDayChain(plan, freshProgress, repsPerQuestion())
-      if (chain.daysAdvanced > 0) {
+      const result = await advancePlanDayIfTodayBlockDone(plan, freshProgress, repsPerQuestion())
+      if (result.advanced && result.newDayNumber) {
         return {
           ok: true,
           reviewScheduled,
-          advancedDay: chain.finalDayNumber,
-          daysSkipped: chain.daysAdvanced,
+          advancedDay: result.newDayNumber,
+          daysSkipped: 1,
         }
       }
     }
