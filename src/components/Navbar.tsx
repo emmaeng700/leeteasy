@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react'
 import { useCallback, useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { Calendar, Zap, Brain, Code2, RefreshCw, Check } from 'lucide-react'
+import { Calendar, Zap, Brain, Code2, RefreshCw, Check, Key } from 'lucide-react'
 import AppNavLink from '@/components/AppNavLink'
 import { APP_BUILD_ID } from '@/lib/appVersion'
 import { clearRefreshQueryParam, forceAppRefresh } from '@/lib/forceAppRefresh'
@@ -13,6 +13,7 @@ const LINKS = [
   { href: '/daily', label: 'Daily', icon: Calendar, match: '/daily' },
   { href: '/review', label: 'Reviews', icon: Brain, match: '/review' },
   { href: '/leetcode', label: 'LeetCode', icon: Zap, match: '/leetcode' },
+  { href: '/clipboard', label: 'Tokens', icon: Key, match: '/clipboard' },
 ] as const
 
 export default function Navbar() {

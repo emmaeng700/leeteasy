@@ -1,4 +1,4 @@
--- LeetEasy RLS ó run after schema.sql (included in bootstrap.sql)
+-- LeetEasy RLS ù run after schema.sql (included in bootstrap.sql)
 
 ALTER TABLE progress ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "owner only" ON progress;
@@ -48,4 +48,9 @@ CREATE POLICY "owner only" ON practice_sessions
 ALTER TABLE time_tracking ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "owner only" ON time_tracking;
 CREATE POLICY "owner only" ON time_tracking
+  FOR ALL USING (user_id = 'emmanuel') WITH CHECK (user_id = 'emmanuel');
+
+ALTER TABLE clipboard_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "owner only" ON clipboard_items;
+CREATE POLICY "owner only" ON clipboard_items
   FOR ALL USING (user_id = 'emmanuel') WITH CHECK (user_id = 'emmanuel');

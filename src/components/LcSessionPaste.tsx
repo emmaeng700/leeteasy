@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { Key } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { getCookieFromHeader, parseStoredLcSession } from '@/lib/leetcodeHttp'
+import { persistLcSessionFromPaste } from '@/lib/leetcodeListSync'
+import { parseStoredLcSession } from '@/lib/leetcodeHttp'
 
 type Props = {
   open: boolean
@@ -26,25 +27,11 @@ export default function LcSessionPaste({ open, onSaved }: Props) {
         return
       }
 
-      let csrfToken = parsed.csrf || getCookieFromHeader(parsed.session, 'csrftoken')
-      if (!csrfToken) {
-        const r = await fetch('/api/lc-csrf', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ session: parsed.session }),
-        })
-        const d = await r.json() as { csrf?: string }
-        csrfToken = d.csrf ?? ''
+      const result = await persistLcSessionFromPaste(session, csrf)
+      if (!result.ok) {
+        toast.error('Saved locally but Supabase save failed — try Clipboard page')
+        return
       }
-
-      localStorage.setItem('lc_session', parsed.session)
-      if (csrfToken) localStorage.setItem('lc_csrf', csrfToken)
-
-      await fetch('/api/lc-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lc_session: parsed.session, lc_csrf: csrfToken }),
-      }).catch(() => { /* local save still works */ })
 
       toast.success('Cookie saved — syncing...')
       onSaved?.()
@@ -62,8 +49,8 @@ export default function LcSessionPaste({ open, onSaved }: Props) {
         LeetCode session (one-time)
       </div>
       <p className="text-xs text-indigo-800/80 mb-3 leading-relaxed">
-        On leetcode.com: DevTools → Application → Cookies → copy <strong>LEETCODE_SESSION</strong> value
-        (or paste the full cookie header). Saved on this device + Supabase so sync works after you leave the app.
+        On leetcode.com: DevTools → Application → Cookies → copy <strong>LEETCODE_SESSION</strong>.
+        Or save on desktop via <strong>Clipboard → Tokens</strong> and tap <strong>Use</strong> on your phone.
       </p>
       <textarea
         value={session}

@@ -128,6 +128,46 @@ export async function loadLcSessionForSync(): Promise<{ session: string; csrf: s
   return { session, csrf }
 }
 
+/** Save LeetCode cookie to localStorage + Supabase (clipboard, paste panel, etc.). */
+export async function persistLcSessionFromPaste(
+  rawSession: string,
+  rawCsrf = '',
+): Promise<{ session: string; csrf: string; ok: boolean }> {
+  const parsed = parseStoredLcSession(rawSession, rawCsrf)
+  if (!parsed.session) return { session: '', csrf: '', ok: false }
+
+  let csrf = parsed.csrf || getCookieFromHeader(parsed.session, 'csrftoken')
+  if (!csrf) {
+    try {
+      const r = await fetch('/api/lc-csrf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session: parsed.session }),
+      })
+      const d = await r.json() as { csrf?: string }
+      csrf = d.csrf ?? ''
+    } catch { /* ignore */ }
+  }
+
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('lc_session', parsed.session)
+    if (csrf) localStorage.setItem('lc_csrf', csrf)
+  }
+
+  try {
+    const res = await fetch('/api/lc-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lc_session: parsed.session, lc_csrf: csrf }),
+    })
+    if (!res.ok) return { session: parsed.session, csrf, ok: false }
+  } catch {
+    return { session: parsed.session, csrf, ok: false }
+  }
+
+  return { session: parsed.session, csrf, ok: true }
+}
+
 function buildSlugToIdMap(questions: Array<{ id: number; slug: string }>): Map<string, number> {
   const map = new Map<string, number>()
   for (const q of questions) {
