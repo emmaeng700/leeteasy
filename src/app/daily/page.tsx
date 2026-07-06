@@ -1,11 +1,10 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Calendar, CheckCircle2, Loader2, Plus, RefreshCw, Settings2, Bell, ChevronRight } from 'lucide-react'
+import { Calendar, CheckCircle2, Loader2, Plus, RefreshCw, Settings2, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 import QuestionCard from '@/components/QuestionCard'
 import DailyPlanSetup, { startIndexToDay } from '@/components/DailyPlanSetup'
-import EmailRemindersCard from '@/components/EmailRemindersCard'
 import { PageShell } from '@/components/Navbar'
 import { withTimeout } from '@/lib/withTimeout'
 import { formatSupabaseLoadError } from '@/lib/formatLoadError'
@@ -23,7 +22,6 @@ export default function DailyPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [noPlan, setNoPlan] = useState(false)
   const [showSetup, setShowSetup] = useState(false)
-  const [showEmail, setShowEmail] = useState(false)
   const [extraCount, setExtraCount] = useState(0)
   const [planStartDay, setPlanStartDay] = useState<number | undefined>()
   const [planTodayDay, setPlanTodayDay] = useState<number | undefined>()
@@ -217,16 +215,6 @@ export default function DailyPage() {
           {meta && (
             <button
               type="button"
-              onClick={() => setShowEmail(v => !v)}
-              className="flex items-center gap-1 px-2 py-1.5 text-xs font-bold rounded-lg bg-sky-50 text-sky-700 border border-sky-200"
-              title="Daily email reminders"
-            >
-              <Bell size={12} />
-            </button>
-          )}
-          {meta && (
-            <button
-              type="button"
               onClick={() => setShowSetup(v => !v)}
               className="flex items-center gap-1 px-2 py-1.5 text-xs font-bold rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200"
               title="Adjust start day and today's plan day"
@@ -258,10 +246,6 @@ export default function DailyPage() {
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-800">
           {loadError}
         </div>
-      )}
-
-      {!loading && showEmail && !loadError && (
-        <EmailRemindersCard open onClose={() => setShowEmail(false)} />
       )}
 
       {!loading && (noPlan || showSetup) && !loadError && questions.length > 0 && (

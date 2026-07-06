@@ -1653,7 +1653,7 @@ export async function rebalanceReviews(horizonDays = 60): Promise<void> {
   }
 }
 
-/** Same rules as notify-daily email: streak day counts when today's active daily block is fully solved; if SR reviews are due, they must be cleared too.
+/** Same rules as streak: today's active daily block solved; clear due SR reviews too.
  *  @param modeOverride  Pass the plan mode explicitly when known (e.g. from daily page state).
  *                       Falls back to localStorage → plan.mode → 'strict'. */
 export async function syncStreakActivityFromGoals(modeOverride?: string): Promise<void> {
@@ -1703,11 +1703,9 @@ export async function syncStreakActivityFromGoals(modeOverride?: string): Promis
   }
 }
 
-// ─── User Profile (email schedule, review settings) ─────────────────────────
+// ─── User Profile (review settings) ─────────────────────────────────────────
 
 export interface UserProfile {
-  emailEnabled?: boolean
-  emailTimes?: string[]
   timezone?: string
   reviewStartDays?: number
   revisionCap?: number
@@ -1717,7 +1715,7 @@ export interface UserProfile {
 export async function getUserProfile(): Promise<UserProfile | null> {
   const { data, error } = await supabase
     .from('user_settings')
-    .select('revision_cap,email_enabled')
+    .select('revision_cap')
     .eq('user_id', USER_ID)
     .maybeSingle()
   if (error) {
@@ -1728,8 +1726,6 @@ export async function getUserProfile(): Promise<UserProfile | null> {
   if (!data) return null
   const row = data as Record<string, unknown>
   return {
-    emailEnabled: row.email_enabled !== false,
-    emailTimes:      [],
     timezone:        'America/Chicago',
     reviewStartDays: 14,
     revisionCap:     (row.revision_cap as number | undefined) ?? 3,
@@ -1743,30 +1739,14 @@ export async function saveUserProfile(profile: UserProfile): Promise<boolean> {
     updated_at: new Date().toISOString(),
   }
   if (profile.revisionCap !== undefined) payload.revision_cap = profile.revisionCap
-  if (profile.emailEnabled !== undefined) payload.email_enabled = profile.emailEnabled
 
   const { error } = await supabase
     .from('user_settings')
     .upsert(payload, { onConflict: 'user_id' })
   if (error) {
-    if (isMissingColumnError(error.message) && profile.emailEnabled !== undefined) {
-      delete payload.email_enabled
-      const { error: retryErr } = await supabase.from('user_settings').upsert(payload, { onConflict: 'user_id' })
-      if (retryErr && !isMissingTableError(retryErr.message)) {
-        console.error('[db] saveUserProfile:', retryErr.message)
-        return false
-      }
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('lm_email_enabled', String(profile.emailEnabled))
-      }
-      return !retryErr
-    }
     if (isMissingTableError(error.message) || isMissingColumnError(error.message)) return false
     console.error('[db] saveUserProfile:', error.message)
     return false
-  }
-  if (typeof window !== 'undefined' && profile.emailEnabled !== undefined) {
-    localStorage.setItem('lm_email_enabled', String(profile.emailEnabled))
   }
   return true
 }
