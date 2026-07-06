@@ -1,10 +1,11 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Calendar, CheckCircle2, Loader2, Plus, RefreshCw, Settings2 } from 'lucide-react'
+import { Calendar, CheckCircle2, Loader2, Plus, RefreshCw, Settings2, Bell, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 import QuestionCard from '@/components/QuestionCard'
 import DailyPlanSetup, { startIndexToDay } from '@/components/DailyPlanSetup'
+import EmailRemindersCard from '@/components/EmailRemindersCard'
 import { PageShell } from '@/components/Navbar'
 import { withTimeout } from '@/lib/withTimeout'
 import { formatSupabaseLoadError } from '@/lib/formatLoadError'
@@ -22,6 +23,7 @@ export default function DailyPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [noPlan, setNoPlan] = useState(false)
   const [showSetup, setShowSetup] = useState(false)
+  const [showEmail, setShowEmail] = useState(false)
   const [extraCount, setExtraCount] = useState(0)
   const [planStartDay, setPlanStartDay] = useState<number | undefined>()
   const [planTodayDay, setPlanTodayDay] = useState<number | undefined>()
@@ -88,6 +90,35 @@ export default function DailyPage() {
   const doneCount = useMemo(() => queue.filter(q => q.done).length, [queue])
   const nextFocusId = useMemo(() => queue.find(q => !q.done)?.question.id, [queue])
 
+  const todayBlockDone = useMemo(
+    () => todayItems.length > 0 && todayItems.every(q => q.done),
+    [todayItems],
+  )
+
+  const goNextPlanDay = async () => {
+    try {
+      const { getStudyPlan, getProgress } = await import('@/lib/db')
+      const { extendPlanWithFlex } = await import('@/lib/planFlex')
+      const { goToNextPlanDay, repsPerQuestion } = await import('@/lib/dailyQueue')
+      const plan = extendPlanWithFlex(await getStudyPlan())
+      const progress = (await getProgress()) ?? {}
+      if (!plan) {
+        toast.error('No plan found')
+        return
+      }
+      const result = await goToNextPlanDay(plan, progress, repsPerQuestion())
+      if (!result.ok) {
+        toast.error(result.error ?? 'Cannot advance')
+        return
+      }
+      toast.success(`Now on plan day ${result.newDayNumber}`)
+      setExtraCount(0)
+      void load()
+    } catch (e) {
+      toast.error(String(e))
+    }
+  }
+
   const refresh = async () => {
     setRefreshing(true)
     try {
@@ -111,7 +142,10 @@ export default function DailyPage() {
         return
       }
       if (result.advancedDay) {
-        toast.success(`Day block done - moved to plan day ${result.advancedDay}`)
+        const skip = result.daysSkipped && result.daysSkipped > 1
+          ? ` (skipped ${result.daysSkipped - 1} already-done days)`
+          : ''
+        toast.success(`Now on plan day ${result.advancedDay}${skip}`)
         setExtraCount(0)
       } else if (result.reviewScheduled) {
         toast.success('Marked done - review scheduled')
@@ -189,6 +223,16 @@ export default function DailyPage() {
           {meta && (
             <button
               type="button"
+              onClick={() => setShowEmail(v => !v)}
+              className="flex items-center gap-1 px-2 py-1.5 text-xs font-bold rounded-lg bg-sky-50 text-sky-700 border border-sky-200"
+              title="Daily email reminders"
+            >
+              <Bell size={12} />
+            </button>
+          )}
+          {meta && (
+            <button
+              type="button"
               onClick={() => setShowSetup(v => !v)}
               className="flex items-center gap-1 px-2 py-1.5 text-xs font-bold rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200"
               title="Adjust start day and today's plan day"
@@ -220,6 +264,10 @@ export default function DailyPage() {
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-800">
           {loadError}
         </div>
+      )}
+
+      {!loading && showEmail && !loadError && (
+        <EmailRemindersCard open onClose={() => setShowEmail(false)} />
       )}
 
       {!loading && (noPlan || showSetup) && !loadError && questions.length > 0 && (
@@ -278,10 +326,25 @@ export default function DailyPage() {
                 Daily progress logged - clear {reviewIds.length} review{reviewIds.length !== 1 ? 's' : ''} when due.
               </p>
             )}
+            {!meta.planComplete && meta.hasMore && todayBlockDone && (
+              <button
+                type="button"
+                onClick={() => void goNextPlanDay()}
+                className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700"
+              >
+                <ChevronRight size={16} />
+                Next plan day (day {meta.dayNumber + 1})
+              </button>
+            )}
+            {todayBlockDone && !meta.hasMore && !meta.planComplete && (
+              <p className="mt-3 text-xs text-indigo-700 bg-indigo-50 rounded-xl px-3 py-2 text-center">
+                Last plan day - finish catch-up when ready.
+              </p>
+            )}
           </div>
 
           <p className="mb-3 text-xs text-zinc-500 leading-relaxed">
-            Catch-up first, then today&apos;s suggestions. Do as many as you want - tap <strong>Mark done</strong> after AC on LeetCode. Reviews schedule automatically for Set 1-3.
+            Mark both suggested questions done to auto-advance, or tap <strong>Next plan day</strong>. Bell icon = email setup.
           </p>
 
           {queue.length === 0 ? (

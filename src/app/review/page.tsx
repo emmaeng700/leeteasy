@@ -4,20 +4,35 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Brain, CheckCircle2, Loader2, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
 import QuestionCard from '@/components/QuestionCard'
+import ReviewSchedulePreview from '@/components/ReviewSchedulePreview'
 import { PageShell } from '@/components/Navbar'
 import { withTimeout } from '@/lib/withTimeout'
 import type { ReviewQueueItem } from '@/lib/reviewQueue'
+import type { GrindQuestion } from '@/lib/grindQuestions'
 
 export default function ReviewPage() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [makeup, setMakeup] = useState<ReviewQueueItem[]>([])
   const [dueToday, setDueToday] = useState<ReviewQueueItem[]>([])
+  const [questions, setQuestions] = useState<GrindQuestion[]>([])
   const [reviewCap, setReviewCap] = useState(3)
   const [scheduledCount, setScheduledCount] = useState(0)
   const [today, setToday] = useState('')
   const [markingId, setMarkingId] = useState<number | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [pipeline, setPipeline] = useState({
+    inSystem: 0,
+    dueToday: 0,
+    upcoming30: 0,
+    reviewStartDays: 14,
+  })
+  const [upcoming, setUpcoming] = useState<Array<{
+    id: number
+    review_count: number
+    next_review: string
+    last_reviewed: string | null
+  }>>([])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -25,7 +40,7 @@ export default function ReviewPage() {
     try {
       const [
         { loadGrindQuestionsBundle },
-        { getDueReviews, getUserRevisionCap, getSrScheduleWindow },
+        { getDueReviews, getUserRevisionCap, getSrScheduleWindow, getUpcomingReviews, getReviewPipelineStats },
         { todayISOChicago },
         { buildReviewQueue: buildRQ },
       ] = await Promise.all([
@@ -36,15 +51,22 @@ export default function ReviewPage() {
       ])
       setToday(todayISOChicago())
 
-      const [qs, dueRows, cap, scheduled] = await Promise.all([
+      const [qs, dueRows, cap, scheduled, stats, upcomingRows] = await Promise.all([
         loadGrindQuestionsBundle(),
         withTimeout(getDueReviews(), 10000, []),
         withTimeout(getUserRevisionCap(), 5000, 3),
         withTimeout(getSrScheduleWindow(30), 10000, []),
+        withTimeout(getReviewPipelineStats(), 10000, {
+          inSystem: 0, dueToday: 0, upcoming30: 0, reviewStartDays: 14,
+        }),
+        withTimeout(getUpcomingReviews(12), 10000, []),
       ])
 
+      setQuestions(qs)
       setReviewCap(cap)
       setScheduledCount(scheduled.length)
+      setPipeline(stats)
+      setUpcoming(upcomingRows)
 
       const { makeup: m, today: t } = buildRQ(dueRows, qs)
       setMakeup(m)
@@ -147,6 +169,14 @@ export default function ReviewPage() {
 
       {!loading && !loadError && (
         <>
+          <ReviewSchedulePreview
+            stats={pipeline}
+            upcoming={upcoming}
+            questions={questions}
+            reviewCap={reviewCap}
+            today={today}
+          />
+
           <div className="grid grid-cols-3 gap-2 mb-4">
             <div className="rounded-xl border border-zinc-200 bg-white p-3 text-center">
               <p className="text-xl font-black text-orange-500">{totalDue}</p>
@@ -158,7 +188,7 @@ export default function ReviewPage() {
             </div>
             <div className="rounded-xl border border-zinc-200 bg-white p-3 text-center">
               <p className="text-xl font-black text-zinc-700">{scheduledCount}</p>
-              <p className="text-[10px] text-zinc-500">Scheduled</p>
+              <p className="text-[10px] text-zinc-500">Next 30 days</p>
             </div>
           </div>
 
@@ -170,8 +200,8 @@ export default function ReviewPage() {
           {totalDue === 0 ? (
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-8 text-center">
               <CheckCircle2 size={28} className="mx-auto text-emerald-500 mb-2" />
-              <p className="font-semibold text-emerald-800">No reviews due</p>
-              <p className="mt-1 text-xs text-emerald-600">Caught up for {today}</p>
+              <p className="font-semibold text-emerald-800">No reviews due right now</p>
+              <p className="mt-1 text-xs text-emerald-600">See schedule above for when they start.</p>
             </div>
           ) : (
             <>

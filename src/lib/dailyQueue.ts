@@ -319,3 +319,57 @@ export async function advancePlanDayIfTodayBlockDone(
   )
   return ok ? { advanced: true, newDayNumber: newClaimed + 1 } : { advanced: false }
 }
+
+/** True when every question in today's suggested plan-day block is marked done. */
+export function isTodayPlanBlockDone(
+  plan: StudyPlan,
+  progress: Record<string, DailyProgressSlice | undefined>,
+  repsPerQ: number,
+): boolean {
+  const today = todayISOChicago()
+  const dailyReps = dailyRepsFromProgress(progress, today)
+  const todayIds = getDayQuestionIds(plan, getClaimedDayIndex(plan))
+  if (todayIds.length === 0) return false
+  return todayIds.every(id =>
+    isQuestionDoneForDailyToday(id, progress, today, dailyReps, repsPerQ),
+  )
+}
+
+/** Advance through consecutive already-done plan days (e.g. after marking day 38 done, skip to 39, 40...). */
+export async function advancePlanDayChain(
+  plan: StudyPlan,
+  progress: Record<string, DailyProgressSlice | undefined>,
+  repsPerQ: number,
+): Promise<{ daysAdvanced: number; finalDayNumber: number }> {
+  let currentPlan = plan
+  let daysAdvanced = 0
+  for (let i = 0; i < 60; i++) {
+    const result = await advancePlanDayIfTodayBlockDone(currentPlan, progress, repsPerQ)
+    if (!result.advanced || !result.newDayNumber) break
+    daysAdvanced++
+    currentPlan = {
+      ...currentPlan,
+      claimedDayIndex: result.newDayNumber - 1,
+    }
+  }
+  return {
+    daysAdvanced,
+    finalDayNumber: getClaimedDayIndex(currentPlan) + 1,
+  }
+}
+
+/** Manual: move to next plan day when today's block is done. */
+export async function goToNextPlanDay(
+  plan: StudyPlan,
+  progress: Record<string, DailyProgressSlice | undefined>,
+  repsPerQ: number,
+): Promise<{ ok: boolean; newDayNumber?: number; error?: string }> {
+  if (!isTodayPlanBlockDone(plan, progress, repsPerQ)) {
+    return { ok: false, error: 'Mark all suggested questions done first' }
+  }
+  const chain = await advancePlanDayChain(plan, progress, repsPerQ)
+  if (chain.daysAdvanced < 1) {
+    return { ok: false, error: 'Already on the last plan day' }
+  }
+  return { ok: true, newDayNumber: chain.finalDayNumber }
+}

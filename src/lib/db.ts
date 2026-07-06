@@ -200,7 +200,7 @@ export async function markDailyQuestionDone(
   questionId: number,
   repsTarget: number,
   questionSet?: number,
-): Promise<{ ok: boolean; reviewScheduled: boolean; advancedDay?: number; error?: string | null }> {
+): Promise<{ ok: boolean; reviewScheduled: boolean; advancedDay?: number; daysSkipped?: number; error?: string | null }> {
   const repResult = await setDailyRep(questionId, repsTarget)
   if (!repResult.ok) return { ok: false, reviewScheduled: false, error: repResult.error }
 
@@ -223,13 +223,18 @@ export async function markDailyQuestionDone(
 
   try {
     const { extendPlanWithFlex } = await import('./planFlex')
-    const { advancePlanDayIfTodayBlockDone, repsPerQuestion } = await import('./dailyQueue')
+    const { advancePlanDayChain, repsPerQuestion } = await import('./dailyQueue')
     const plan = extendPlanWithFlex(await getStudyPlan())
     const freshProgress = (await getProgress()) ?? {}
     if (plan) {
-      const adv = await advancePlanDayIfTodayBlockDone(plan, freshProgress, repsPerQuestion())
-      if (adv.advanced && adv.newDayNumber) {
-        return { ok: true, reviewScheduled, advancedDay: adv.newDayNumber }
+      const chain = await advancePlanDayChain(plan, freshProgress, repsPerQuestion())
+      if (chain.daysAdvanced > 0) {
+        return {
+          ok: true,
+          reviewScheduled,
+          advancedDay: chain.finalDayNumber,
+          daysSkipped: chain.daysAdvanced,
+        }
       }
     }
   } catch { /* non-fatal */ }
@@ -1389,6 +1394,54 @@ export async function getSrScheduleWindow(daysAhead = 30): Promise<Array<{ id: n
   return (data ?? []).map((r: any) => ({ id: r.question_id, review_count: r.review_count, next_review: r.next_review }))
 }
 
+/** All future scheduled reviews (after today), for preview timeline. */
+export async function getUpcomingReviews(limit = 30): Promise<Array<{
+  id: number
+  review_count: number
+  next_review: string
+  last_reviewed: string | null
+}>> {
+  const today = todayISOChicago()
+  const { data } = await supabase
+    .from('progress')
+    .select('question_id,next_review,review_count,last_reviewed')
+    .eq('user_id', USER_ID)
+    .eq('solved', true)
+    .not('next_review', 'is', null)
+    .gt('next_review', today)
+    .order('next_review', { ascending: true })
+    .limit(limit)
+  return (data ?? []).map((r: any) => ({
+    id: r.question_id,
+    review_count: r.review_count ?? 0,
+    next_review: r.next_review,
+    last_reviewed: r.last_reviewed ?? null,
+  }))
+}
+
+/** Review pipeline stats for the Reviews preview panel. */
+export async function getReviewPipelineStats(): Promise<{
+  inSystem: number
+  dueToday: number
+  upcoming30: number
+  reviewStartDays: number
+}> {
+  const today = todayISOChicago()
+  const horizon = addDaysISO(today, 30)
+  const [{ count: inSystem }, { count: dueToday }, { count: upcoming30 }, planRes] = await Promise.all([
+    supabase.from('progress').select('*', { count: 'exact', head: true }).eq('user_id', USER_ID).eq('solved', true).not('next_review', 'is', null),
+    supabase.from('progress').select('*', { count: 'exact', head: true }).eq('user_id', USER_ID).eq('solved', true).lte('next_review', today),
+    supabase.from('progress').select('*', { count: 'exact', head: true }).eq('user_id', USER_ID).eq('solved', true).gt('next_review', today).lte('next_review', horizon),
+    supabase.from('study_plan').select('review_start_days').eq('user_id', USER_ID).maybeSingle(),
+  ])
+  return {
+    inSystem: inSystem ?? 0,
+    dueToday: dueToday ?? 0,
+    upcoming30: upcoming30 ?? 0,
+    reviewStartDays: Number(planRes.data?.review_start_days) || 14,
+  }
+}
+
 /** Count SR reviews completed today (last_reviewed = today Chicago). */
 export async function getReviewsCompletedToday(): Promise<number> {
   const today = todayISOChicago()
@@ -1682,11 +1735,10 @@ export interface UserProfile {
 export async function getUserProfile(): Promise<UserProfile | null> {
   const { data, error } = await supabase
     .from('user_settings')
-    .select('revision_cap')
+    .select('revision_cap,email_enabled')
     .eq('user_id', USER_ID)
     .maybeSingle()
   if (error) {
-    // Column not yet migrated or table missing — return null (caller uses defaults)
     if (isMissingTableError(error.message) || isMissingColumnError(error.message)) return null
     console.error('[db] getUserProfile:', error.message)
     return null
@@ -1694,7 +1746,7 @@ export async function getUserProfile(): Promise<UserProfile | null> {
   if (!data) return null
   const row = data as Record<string, unknown>
   return {
-    emailEnabled:    true,
+    emailEnabled: row.email_enabled !== false,
     emailTimes:      [],
     timezone:        'America/Chicago',
     reviewStartDays: 14,
@@ -1708,16 +1760,31 @@ export async function saveUserProfile(profile: UserProfile): Promise<boolean> {
     user_id: USER_ID,
     updated_at: new Date().toISOString(),
   }
-  // Only write columns that exist in user_settings
   if (profile.revisionCap !== undefined) payload.revision_cap = profile.revisionCap
+  if (profile.emailEnabled !== undefined) payload.email_enabled = profile.emailEnabled
 
   const { error } = await supabase
     .from('user_settings')
     .upsert(payload, { onConflict: 'user_id' })
   if (error) {
+    if (isMissingColumnError(error.message) && profile.emailEnabled !== undefined) {
+      delete payload.email_enabled
+      const { error: retryErr } = await supabase.from('user_settings').upsert(payload, { onConflict: 'user_id' })
+      if (retryErr && !isMissingTableError(retryErr.message)) {
+        console.error('[db] saveUserProfile:', retryErr.message)
+        return false
+      }
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('lm_email_enabled', String(profile.emailEnabled))
+      }
+      return !retryErr
+    }
     if (isMissingTableError(error.message) || isMissingColumnError(error.message)) return false
     console.error('[db] saveUserProfile:', error.message)
     return false
+  }
+  if (typeof window !== 'undefined' && profile.emailEnabled !== undefined) {
+    localStorage.setItem('lm_email_enabled', String(profile.emailEnabled))
   }
   return true
 }
