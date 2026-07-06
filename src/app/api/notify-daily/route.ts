@@ -9,6 +9,9 @@ import { leetCodeUrl, resolveLeetCodeSlug } from '@/lib/utils'
 const USER_ID = 'emmanuel'
 const TZ = 'America/Chicago'
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://leeteasy.vercel.app'
+/** Match vercel.json cron (every 3 hours). Cooldown slightly under interval to avoid duplicates. */
+const REMINDER_INTERVAL_HOURS = Number(process.env.REMINDER_INTERVAL_HOURS) || 3
+const COOLDOWN_MS = Math.max(1, REMINDER_INTERVAL_HOURS * 60 - 10) * 60 * 1000
 
 const diffColor: Record<string, string> = { Easy: '#16a34a', Medium: '#d97706', Hard: '#dc2626' }
 
@@ -72,7 +75,6 @@ export async function GET(req: NextRequest) {
   )
 
   const todayStr = todayCT()
-  const COOLDOWN_MS = 90 * 60 * 1000
 
   if (!isPreview) {
     const { data: planMeta } = await supabase
@@ -83,7 +85,8 @@ export async function GET(req: NextRequest) {
     if (planMeta?.last_notified_at) {
       const msSinceLast = Date.now() - new Date(planMeta.last_notified_at as string).getTime()
       if (msSinceLast < COOLDOWN_MS) {
-        return NextResponse.json({ skipped: 'Cooldown active' })
+        const minsLeft = Math.ceil((COOLDOWN_MS - msSinceLast) / 60000)
+        return NextResponse.json({ skipped: `Cooldown - next email in ~${minsLeft} min` })
       }
     }
   }
@@ -162,10 +165,16 @@ export async function GET(req: NextRequest) {
   const reviewsActive = dueReviews.length > 0
   const isDayComplete = (dailiesDone || !hasPlan) && !reviewsActive
 
+  // No spam every 3h when today's work is finished.
+  if (!isPreview && isDayComplete) {
+    return NextResponse.json({ skipped: 'Day complete - no reminder needed' })
+  }
+
   let subject: string
   let html: string
 
   if (isDayComplete) {
+    // Preview mode only (production skips above when complete).
     subject = planComplete
       ? 'All 727 grind questions done - keep reviews going'
       : `Daily done - ${solvedCount}/${totalCount} questions`
@@ -211,7 +220,7 @@ export async function GET(req: NextRequest) {
     html = `<!DOCTYPE html><html><body style="font-family:sans-serif;background:#f9fafb;padding:24px;">
       <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:16px;padding:24px;">
         <h1 style="color:#4f46e5;margin:0 0 8px;">LeetEasy Daily</h1>
-        <p style="color:#6b7280;margin:0 0 16px;">Your daily reminder - solve on LeetCode, then Mark done in the app.</p>
+        <p style="color:#6b7280;margin:0 0 16px;">Reminder every ~3 hours until daily + reviews are done.</p>
         ${planSection}
         ${reviewsActive ? `<h3 style="margin:16px 0 8px;">Reviews due (${dueReviews.length})</h3><ul style="padding-left:18px;">${reviewRows}</ul>` : ''}
         <p style="margin-top:20px;"><a href="${APP_URL}/daily" style="background:#4f46e5;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:bold;">Go to Daily</a></p>
