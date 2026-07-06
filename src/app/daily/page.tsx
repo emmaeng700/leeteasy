@@ -60,18 +60,6 @@ export default function DailyPage() {
         setPlanTodayDay(plan.claimedDayIndex + 1)
       }
 
-      if (plan && progress) {
-        const reps = repsPerQuestion()
-        const { rollPlanForwardAfterWork } = await import('@/lib/dailyQueue')
-        const roll = await rollPlanForwardAfterWork(plan, progress, reps)
-        if (roll.daysMoved > 0) {
-          plan = extendPlanWithFlex(await getStudyPlan()) ?? roll.plan
-          if (plan) {
-            setPlanTodayDay(plan.claimedDayIndex + 1)
-          }
-        }
-      }
-
       setReviewIds(due.map(d => d.id))
       if (plan && progress) {
         const reps = repsPerQuestion()
@@ -153,13 +141,7 @@ export default function DailyPage() {
         toast.error(result.error ?? 'Could not mark done')
         return
       }
-      if (result.advancedDay) {
-        const skip = result.daysSkipped && result.daysSkipped > 1
-          ? ` (skipped ${result.daysSkipped - 1} already-done days)`
-          : ''
-        toast.success(`Now on plan day ${result.advancedDay}${skip}`)
-        setExtraCount(0)
-      } else if (result.reviewScheduled) {
+      if (result.reviewScheduled) {
         toast.success('Marked done - review scheduled')
       } else {
         toast.success('Marked done for today')
@@ -338,7 +320,7 @@ export default function DailyPage() {
                 Daily progress logged - clear {reviewIds.length} review{reviewIds.length !== 1 ? 's' : ''} when due.
               </p>
             )}
-            {!meta.planComplete && meta.hasMore && todayBlockDone && (
+            {!meta.planComplete && meta.hasMore && (
               <button
                 type="button"
                 onClick={() => void goNextPlanDay()}
@@ -356,7 +338,7 @@ export default function DailyPage() {
           </div>
 
           <p className="mb-3 text-xs text-zinc-500 leading-relaxed">
-            Mark both suggested questions done and the next pair appears automatically. Already AC on LeetCode? Sync on the LeetCode tab — those days skip. Tap <strong>Add more</strong> to pull ahead anytime.
+            You control the pace — tap <strong>Next plan day</strong> when you want the next 2 questions (one day at a time). Mark done logs progress; LeetCode sync does not auto-skip days.
           </p>
 
           {queue.length === 0 ? (
@@ -368,23 +350,10 @@ export default function DailyPage() {
             ) : (
               <p className="text-sm text-zinc-500">No questions scheduled.</p>
             )
-          ) : meta.dayComplete && !(meta.hasMore && todayBlockDone) ? (
+          ) : meta.dayComplete && !meta.hasMore ? (
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-8 text-center">
               <p className="font-bold text-emerald-800">All done for today</p>
               <p className="mt-1 text-xs text-emerald-600">Nice work.</p>
-            </div>
-          ) : todayBlockDone && meta.hasMore && !meta.planComplete ? (
-            <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-6 text-center mb-4">
-              <p className="font-bold text-indigo-900">Plan day {meta.dayNumber} complete</p>
-              <p className="mt-1 text-xs text-indigo-700 mb-3">Loading next pair… or tap below.</p>
-              <button
-                type="button"
-                onClick={() => void goNextPlanDay()}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700"
-              >
-                <ChevronRight size={16} />
-                Continue to plan day {meta.dayNumber + 1}
-              </button>
             </div>
           ) : (
             <>

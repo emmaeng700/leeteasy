@@ -444,11 +444,11 @@ export async function advancePlanDayChain(
   }
 }
 
-/** Manual: move to next plan day when today's block is done. */
+/** Manual: move exactly one plan day forward (you tap — no auto-skip). */
 export async function goToNextPlanDay(
   plan: StudyPlan,
-  progress: Record<string, DailyProgressSlice | undefined>,
-  repsPerQ: number,
+  _progress: Record<string, DailyProgressSlice | undefined>,
+  _repsPerQ: number,
 ): Promise<{ ok: boolean; newDayNumber?: number; error?: string }> {
   const local = readPlanFlexLocal()
   const effectivePlan: StudyPlan = {
@@ -457,10 +457,6 @@ export async function goToNextPlanDay(
       local.claimedDayIndex > 0
         ? local.claimedDayIndex
         : (plan.claimedDayIndex ?? 0),
-  }
-
-  if (!isTodayPlanBlockDone(effectivePlan, progress, repsPerQ)) {
-    return { ok: false, error: 'Mark all suggested questions done first' }
   }
 
   const activeDay = getClaimedDayIndex(effectivePlan)

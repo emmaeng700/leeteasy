@@ -223,24 +223,6 @@ export async function markDailyQuestionDone(
     }
   }
 
-  try {
-    const { extendPlanWithFlex } = await import('./planFlex')
-    const { rollPlanForwardAfterWork, repsPerQuestion } = await import('./dailyQueue')
-    const plan = extendPlanWithFlex(await getStudyPlan())
-    const freshProgress = (await getProgress()) ?? {}
-    if (plan) {
-      const roll = await rollPlanForwardAfterWork(plan, freshProgress, repsPerQuestion())
-      if (roll.daysMoved > 0) {
-        return {
-          ok: true,
-          reviewScheduled,
-          advancedDay: roll.finalDayNumber,
-          daysSkipped: roll.daysMoved,
-        }
-      }
-    }
-  } catch { /* non-fatal */ }
-
   return { ok: true, reviewScheduled }
 }
 
