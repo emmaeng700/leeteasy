@@ -18,7 +18,10 @@ function isMissingTableError(message: string | undefined | null): boolean {
 
 function isMissingColumnError(message: string | undefined | null): boolean {
   const m = (message ?? '').toLowerCase()
-  return m.includes('column') && m.includes('does not exist')
+  return (
+    (m.includes('column') && m.includes('does not exist')) ||
+    (m.includes('could not find the') && m.includes('column') && m.includes('schema cache'))
+  )
 }
 
 function isFetchTransportError(message: string | undefined | null): boolean {
@@ -97,7 +100,6 @@ function progressUpsertBase(existing: Record<string, unknown> | null | undefined
     solved: !!(existing?.solved),
     starred: !!(existing?.starred),
     notes: String(existing?.notes ?? ''),
-    status: (existing?.status as string | null | undefined) ?? null,
     review_count: Number(existing?.review_count ?? 0),
     next_review: (existing?.next_review as string | null | undefined) ?? null,
     last_reviewed: (existing?.last_reviewed as string | null | undefined) ?? null,
@@ -420,7 +422,6 @@ export async function updateProgress(questionId: number, data: any) {
     solved: data.solved ?? existing?.solved ?? false,
     starred: data.starred ?? existing?.starred ?? false,
     notes: data.notes ?? existing?.notes ?? '',
-    status: data.status ?? existing?.status ?? null,
     review_count: reviewCount,
     next_review: nextReview,
     last_reviewed: lastReviewed,
@@ -1034,7 +1035,6 @@ export async function resetAllProgress(): Promise<{ error?: string }> {
       review_count: 0,
       next_review: null,
       last_reviewed: null,
-      status: null,
       updated_at: new Date().toISOString(),
     })
     .eq('user_id', USER_ID)

@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS progress (
   last_daily_done DATE,
   daily_rep_count INTEGER DEFAULT 0,
   daily_rep_date DATE,
+  status TEXT,
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(user_id, question_id)
 );
