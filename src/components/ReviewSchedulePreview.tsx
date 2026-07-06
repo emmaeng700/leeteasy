@@ -1,7 +1,7 @@
 'use client'
 
 import type { GrindQuestion } from '@/lib/grindQuestions'
-import { srInterval } from '@/lib/utils'
+import { leetCodeUrl, resolveLeetCodeSlug, srInterval } from '@/lib/utils'
 
 type Upcoming = {
   id: number
@@ -50,6 +50,10 @@ export default function ReviewSchedulePreview({ stats, upcoming, questions, revi
           <strong>{srInterval(0)}d</strong>, then <strong>{srInterval(1)}d</strong>, then <strong>{srInterval(2)}d</strong> (repeats 7d).
         </p>
         <p>
+          <strong>Due today:</strong> tap a card to open LeetCode, AC there, then <strong>Mark done</strong> here.
+          The app does not auto-detect LeetCode AC for reviews.
+        </p>
+        <p>
           <strong>Daily cap:</strong> up to <strong>{reviewCap}</strong> new reviews per day.
           Missed reviews roll forward (unlimited catch-up).
         </p>
@@ -84,18 +88,34 @@ export default function ReviewSchedulePreview({ stats, upcoming, questions, revi
           <ul className="space-y-1.5 max-h-48 overflow-y-auto">
             {upcoming.slice(0, 8).map(row => {
               const q = qById.get(row.id)
+              const href = q
+                ? leetCodeUrl(resolveLeetCodeSlug(q.id, q.slug))
+                : undefined
               return (
-                <li
-                  key={row.id}
-                  className="flex items-center justify-between gap-2 text-xs bg-white/70 rounded-lg px-2.5 py-1.5 border border-violet-100"
-                >
-                  <span className="truncate font-medium text-zinc-800">
-                    #{row.id} {q?.title ?? 'Question'}
-                    {q?.set ? <span className="text-zinc-400 ml-1">S{q.set}</span> : null}
-                  </span>
-                  <span className="shrink-0 text-violet-700 font-semibold tabular-nums">
-                    {formatDate(row.next_review)}
-                  </span>
+                <li key={row.id}>
+                  {href ? (
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between gap-2 text-xs bg-white/70 rounded-lg px-2.5 py-1.5 border border-violet-100 hover:border-violet-300 active:scale-[0.99]"
+                    >
+                      <span className="truncate font-medium text-zinc-800">
+                        #{row.id} {q?.title ?? 'Question'}
+                        {q?.set ? <span className="text-zinc-400 ml-1">S{q.set}</span> : null}
+                      </span>
+                      <span className="shrink-0 text-violet-700 font-semibold tabular-nums">
+                        {formatDate(row.next_review)}
+                      </span>
+                    </a>
+                  ) : (
+                    <div className="flex items-center justify-between gap-2 text-xs bg-white/70 rounded-lg px-2.5 py-1.5 border border-violet-100">
+                      <span className="truncate font-medium text-zinc-800">#{row.id}</span>
+                      <span className="shrink-0 text-violet-700 font-semibold tabular-nums">
+                        {formatDate(row.next_review)}
+                      </span>
+                    </div>
+                  )}
                 </li>
               )
             })}

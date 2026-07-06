@@ -3,7 +3,7 @@
 import { Check, ExternalLink, CheckCircle2 } from 'lucide-react'
 import DifficultyBadge from './DifficultyBadge'
 import PriorityBadge from './PriorityBadge'
-import { leetCodeUrl } from '@/lib/utils'
+import { leetCodeUrl, resolveLeetCodeSlug } from '@/lib/utils'
 import type { GrindQuestion } from '@/lib/grindQuestions'
 
 type Props = {
@@ -25,7 +25,7 @@ export default function QuestionCard({
   onMarkDone,
   markingDone,
 }: Props) {
-  const href = leetCodeUrl(question.slug)
+  const href = leetCodeUrl(resolveLeetCodeSlug(question.id, question.slug))
 
   return (
     <div
