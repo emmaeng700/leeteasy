@@ -128,6 +128,24 @@ export async function loadLcSessionForSync(): Promise<{ session: string; csrf: s
   return { session, csrf }
 }
 
+/** Load session from local/Supabase; if missing, auto-apply newest Tokens clipboard entry. */
+export async function ensureLcSessionForSync(): Promise<{ session: string; csrf: string }> {
+  let creds = await loadLcSessionForSync()
+  if (creds.session) return creds
+
+  try {
+    const r = await fetch('/api/clipboard', { cache: 'no-store' })
+    const d = await r.json() as { items?: Array<{ is_token: boolean; content: string }> }
+    const token = (d.items ?? []).find(i => i.is_token && i.content?.trim())
+    if (token) {
+      await persistLcSessionFromPaste(token.content)
+      creds = await loadLcSessionForSync()
+    }
+  } catch { /* ignore */ }
+
+  return creds
+}
+
 /** Save LeetCode cookie to localStorage + Supabase (clipboard, paste panel, etc.). */
 export async function persistLcSessionFromPaste(
   rawSession: string,
@@ -160,9 +178,12 @@ export async function persistLcSessionFromPaste(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ lc_session: parsed.session, lc_csrf: csrf }),
     })
-    if (!res.ok) return { session: parsed.session, csrf, ok: false }
+    if (!res.ok) {
+      // Local session still usable for sync on this device
+      return { session: parsed.session, csrf, ok: true }
+    }
   } catch {
-    return { session: parsed.session, csrf, ok: false }
+    return { session: parsed.session, csrf, ok: true }
   }
 
   return { session: parsed.session, csrf, ok: true }
@@ -181,14 +202,14 @@ export async function fetchAcBySlug(session: string, csrf: string): Promise<{
   bySlug: Record<string, number>
   error?: string
 }> {
-  if (!session || !csrf) {
+  if (!session) {
     return { bySlug: {}, error: 'no_session' }
   }
 
   const res = await fetch('/api/leetcode/ac-counts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ session, csrfToken: csrf }),
+    body: JSON.stringify({ session, csrfToken: csrf || '' }),
   })
 
   const data = await res.json() as { bySlug?: Record<string, number>; error?: string }

@@ -6,7 +6,7 @@
 import { bumpDailyRep, completeReview, getProgress } from '@/lib/db'
 import { isQuestionDoneForDailyToday } from '@/lib/dailyCompletion'
 import { repsPerQuestion, type DailyQueueItem } from '@/lib/dailyQueue'
-import { fetchAcBySlug, loadLcSessionForSync, readLcListSync, syncLeetCodeAccepted } from '@/lib/leetcodeListSync'
+import { fetchAcBySlug, ensureLcSessionForSync, readLcListSync, syncLeetCodeAccepted } from '@/lib/leetcodeListSync'
 import { todayISOChicago } from '@/lib/studyPlanDay'
 import { resolveLeetCodeSlug } from '@/lib/utils'
 import type { GrindQuestion } from '@/lib/grindQuestions'
@@ -44,7 +44,7 @@ export async function syncAndApplyProgress(opts: {
   dailyQueue: DailyQueueItem[]
   reviewIds: number[]
 }): Promise<SyncApplyResult> {
-  const { session, csrf } = await loadLcSessionForSync()
+  const { session, csrf } = await ensureLcSessionForSync()
   const { bySlug, error } = await fetchAcBySlug(session, csrf)
   if (error) return { ok: false, error, dailyUpdates: [], reviewUpdates: [] }
 

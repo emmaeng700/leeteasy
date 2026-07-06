@@ -10,9 +10,8 @@ import { loadGrindQuestionsBundle, type GrindQuestion } from '@/lib/grindQuestio
 import { grindListWithDividers } from '@/lib/grindList'
 import {
   formatSyncTime,
+  ensureLcSessionForSync,
   hydrateLcListSync,
-  loadLcSessionForSync,
-  readLcListSync,
   syncLeetCodeAccepted,
   type LcListSyncState,
 } from '@/lib/leetcodeListSync'
@@ -95,8 +94,9 @@ export default function LeetCodeListPage() {
     document.addEventListener('visibilitychange', onVisible)
     window.addEventListener('pageshow', refreshSync)
 
-    void loadLcSessionForSync().then(({ session }) => {
-      if (!session) setShowSessionPaste(true)
+    void ensureLcSessionForSync().then(({ session }) => {
+      if (session) setShowSessionPaste(false)
+      else setShowSessionPaste(true)
     })
 
     void loadGrindQuestionsBundle()
@@ -116,12 +116,17 @@ export default function LeetCodeListPage() {
     if (syncing || questions.length === 0) return
     setSyncing(true)
     try {
-      const { session, csrf } = await loadLcSessionForSync()
+      const { session, csrf } = await ensureLcSessionForSync()
+      if (!session) {
+        setShowSessionPaste(true)
+        toast.error('No session found. Tokens tab: tap Use on your saved token, then sync again.')
+        return
+      }
       const result = await syncLeetCodeAccepted(questions, session, csrf)
       if (result.error) {
         if (result.error === 'no_session') {
           setShowSessionPaste(true)
-          toast.error('Save your LeetCode cookie below, then sync again')
+          toast.error('Session expired. Save a fresh token on Tokens, tap Use, then sync.')
         } else {
           toast.error(result.error)
         }

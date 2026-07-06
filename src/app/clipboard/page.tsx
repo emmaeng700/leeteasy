@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { PageShell } from '@/components/Navbar'
-import { persistLcSessionFromPaste } from '@/lib/leetcodeListSync'
+import { persistLcSessionFromPaste, ensureLcSessionForSync } from '@/lib/leetcodeListSync'
 import {
   clearTokenCleanerDraft,
   readTokenCleanerDraft,
@@ -216,8 +216,12 @@ function ItemCard({ item, onDelete }: { item: ClipItem; onDelete: (id: number) =
     setApplying(true)
     try {
       const result = await persistLcSessionFromPaste(item.content)
-      if (result.ok) toast.success('LeetCode session applied - sync ready')
-      else toast.error('Could not apply session - check token format')
+      const creds = await ensureLcSessionForSync()
+      if (!result.ok || !creds.session) {
+        toast.error('Could not read LEETCODE_SESSION from this token')
+        return
+      }
+      toast.success('Session applied. Open LeetCode and tap Sync from LeetCode.')
     } finally {
       setApplying(false)
     }
