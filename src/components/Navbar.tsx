@@ -1,10 +1,12 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { Calendar, Zap, Brain, Code2, RefreshCw, Check } from 'lucide-react'
 import AppNavLink from '@/components/AppNavLink'
+import { APP_BUILD_ID } from '@/lib/appVersion'
+import { clearRefreshQueryParam, forceAppRefresh } from '@/lib/forceAppRefresh'
 
 const LINKS = [
   { href: '/grind-offline.html', label: 'Grind', icon: Code2, match: '/grind' },
@@ -20,24 +22,22 @@ export default function Navbar() {
   const checkForUpdate = useCallback(async () => {
     setUpdateStatus('checking')
     try {
-      if ('serviceWorker' in navigator) {
-        const reg = await navigator.serviceWorker.getRegistration()
-        if (reg?.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' })
-        await fetch(`/sw.js?reload=${Date.now()}`, { cache: 'no-store' }).catch(() => {})
-        await fetch(`/sw-v26.js?reload=${Date.now()}`, { cache: 'no-store' }).catch(() => {})
-        void reg?.update()
-      }
-      window.location.href = window.location.href
+      await forceAppRefresh()
     } catch {
       setUpdateStatus('idle')
     }
   }, [])
 
+  useEffect(() => {
+    clearRefreshQueryParam()
+  }, [])
+
   return (
     <nav className="sticky top-0 z-50 border-b border-zinc-200/80 bg-white/90 backdrop-blur-md">
       <div className="mx-auto flex max-w-lg items-center justify-between px-4 h-12 gap-2">
-        <AppNavLink href="/" className="font-bold text-indigo-600 tracking-tight shrink-0">
-          LeetEasy
+        <AppNavLink href="/" className="font-bold text-indigo-600 tracking-tight shrink-0 flex flex-col leading-none">
+          <span>LeetEasy</span>
+          <span className="text-[8px] font-mono text-zinc-400 tracking-normal">{APP_BUILD_ID}</span>
         </AppNavLink>
         <div className="flex items-center gap-0.5 min-w-0">
           {LINKS.map(({ href, label, icon: Icon, match }) => {
@@ -66,7 +66,7 @@ export default function Navbar() {
                 ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
                 : 'border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100'
             }`}
-            title="Refresh app and offline cache"
+            title="Clear cache and reload latest build"
           >
             {updateStatus === 'checking' ? (
               <RefreshCw size={11} className="animate-spin" />

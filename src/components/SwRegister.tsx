@@ -2,6 +2,7 @@
 import { useEffect } from 'react'
 import { cacheAllDescriptionImages, descriptionImagesCached } from '@/lib/descriptionImageCache'
 import { cacheGrindOfflineAssets, OFFLINE_PAGES } from '@/lib/offlinePages'
+import { ensureCurrentBuild, purgeAppCaches, warmServiceWorker } from '@/lib/forceAppRefresh'
 
 function cacheOfflinePages(registration: ServiceWorkerRegistration) {
   const worker = registration.active || registration.waiting || registration.installing
@@ -22,13 +23,7 @@ function isLocalDevHost(): boolean {
 }
 
 async function purgeDevServiceWorker(): Promise<void> {
-  if (!('serviceWorker' in navigator)) return
-  const regs = await navigator.serviceWorker.getRegistrations()
-  await Promise.all(regs.map(reg => reg.unregister()))
-  if ('caches' in window) {
-    const keys = await caches.keys()
-    await Promise.all(keys.map(k => caches.delete(k)))
-  }
+  await purgeAppCaches()
 }
 
 export default function SwRegister() {
@@ -40,27 +35,29 @@ export default function SwRegister() {
       return
     }
 
-    navigator.serviceWorker
-      .register('/sw.js', { updateViaCache: 'none' })
-      .then(reg => {
-        void reg.update()
-        if (navigator.onLine) {
-          cacheOfflinePages(reg)
-          void cacheGrindOfflineAssets()
-          warmDescriptionImages()
-        }
-        reg.addEventListener('updatefound', () => {
-          const next = reg.installing
-          next?.addEventListener('statechange', () => {
-            if (next.state === 'activated' && navigator.onLine) {
-              cacheOfflinePages(reg)
-              void cacheGrindOfflineAssets()
-              warmDescriptionImages()
-            }
-          })
+    void (async () => {
+      const reloading = await ensureCurrentBuild()
+      if (reloading) return
+
+      const reg = await warmServiceWorker().catch(() => null)
+      if (!reg) return
+
+      if (navigator.onLine) {
+        cacheOfflinePages(reg)
+        void cacheGrindOfflineAssets()
+        warmDescriptionImages()
+      }
+      reg.addEventListener('updatefound', () => {
+        const next = reg.installing
+        next?.addEventListener('statechange', () => {
+          if (next.state === 'activated' && navigator.onLine) {
+            cacheOfflinePages(reg)
+            void cacheGrindOfflineAssets()
+            warmDescriptionImages()
+          }
         })
       })
-      .catch(() => {})
+    })()
 
     const onOnline = () => {
       navigator.serviceWorker.ready
