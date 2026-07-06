@@ -54,10 +54,24 @@ export default function DailyPage() {
 
       setQuestions(qs)
 
-      const plan = extendPlanWithFlex(planRaw)
+      let plan = extendPlanWithFlex(planRaw)
       if (plan) {
         setPlanStartDay(startIndexToDay(plan.planStartIndex, plan.per_day))
         setPlanTodayDay(plan.claimedDayIndex + 1)
+      }
+
+      if (plan && progress) {
+        const reps = repsPerQuestion()
+        const { advancePlanDayChain, isTodayPlanBlockDone } = await import('@/lib/dailyQueue')
+        if (isTodayPlanBlockDone(plan, progress, reps)) {
+          const chain = await advancePlanDayChain(plan, progress, reps)
+          if (chain.daysAdvanced > 0) {
+            plan = extendPlanWithFlex(await getStudyPlan())
+            if (plan) {
+              setPlanTodayDay(plan.claimedDayIndex + 1)
+            }
+          }
+        }
       }
 
       setReviewIds(due.map(d => d.id))
@@ -356,6 +370,19 @@ export default function DailyPage() {
             ) : (
               <p className="text-sm text-zinc-500">No questions scheduled.</p>
             )
+          ) : meta.dayComplete && todayBlockDone && meta.hasMore && !meta.planComplete ? (
+            <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-8 text-center">
+              <p className="font-bold text-indigo-900">Plan day {meta.dayNumber} done</p>
+              <p className="mt-1 text-xs text-indigo-700 mb-4">Today&apos;s block + reviews are clear. Keep going?</p>
+              <button
+                type="button"
+                onClick={() => void goNextPlanDay()}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700"
+              >
+                <ChevronRight size={16} />
+                Continue to plan day {meta.dayNumber + 1}
+              </button>
+            </div>
           ) : meta.dayComplete ? (
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-8 text-center">
               <p className="font-bold text-emerald-800">All done for today</p>

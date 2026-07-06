@@ -66,7 +66,7 @@ export function extendPlanWithFlex(raw: unknown): FlexStudyPlan | null {
     start_date: startDate,
     per_day: perDay,
     question_order: qo.map(n => Number(n)),
-    mode: typeof p.mode === 'string' ? p.mode : 'flex',
+    mode: 'flex',
     review_start_days: Number(p.review_start_days) || 14,
     planStartIndex,
     claimedDayIndex,

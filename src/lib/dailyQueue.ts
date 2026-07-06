@@ -90,15 +90,14 @@ export function getPushedForwardIds(
   const result: number[] = []
   const startDay = getStartDayIndex(plan)
   const claimedDay = getClaimedDayIndex(plan)
-  const useFlex = mode === 'flex'
-  const loopEnd = useFlex ? claimedDay : calendarDayIndex
+  const loopEnd = claimedDay
 
   for (let i = startDay; i < loopEnd; i++) {
     const dayIds = getDayQuestionIds(plan, i)
     const scheduledDate = dayScheduledISO(plan.start_date, i)
     const pastDayComplete = isPlanDayComplete(
-      i, dayIds, progress, useFlex ? claimedDay : calendarDayIndex, today, dailyReps, repsPerQ,
-      { flexMode: useFlex },
+      i, dayIds, progress, claimedDay, today, dailyReps, repsPerQ,
+      { flexMode: true },
     )
     if (pastDayComplete) continue
     for (const id of dayIds) {
@@ -112,31 +111,11 @@ export function getPushedForwardIds(
 
 export function getActiveDayIndex(
   plan: StudyPlan,
-  progress: Record<string, DailyProgressSlice | undefined>,
-  repsPerQ: number,
-  dailyReps?: Record<string, number>,
+  _progress: Record<string, DailyProgressSlice | undefined>,
+  _repsPerQ: number,
+  _dailyReps?: Record<string, number>,
 ): number {
-  const mode = plan.mode ?? 'strict'
-  if (mode === 'flex') {
-    return getClaimedDayIndex(plan)
-  }
-
-  const today = todayISOChicago()
-  const diffDays = getCalendarDayIndex(plan)
-  const totalDays = Math.ceil(plan.question_order.length / plan.per_day)
-  const startDay = getStartDayIndex(plan)
-  if (diffDays < 0) return startDay
-  if (diffDays >= totalDays) return totalDays - 1
-
-  let active = Math.min(Math.max(diffDays, startDay), totalDays - 1)
-  for (let i = startDay; i <= Math.min(diffDays, totalDays - 1); i++) {
-    const ids = getDayQuestionIds(plan, i)
-    if (!isPlanDayComplete(i, ids, progress, diffDays, today, dailyReps, repsPerQ)) {
-      active = i
-      break
-    }
-  }
-  return active
+  return getClaimedDayIndex(plan)
 }
 
 /** Next N question ids after today's block (flex "do more"). */
@@ -194,7 +173,7 @@ export function buildDailyQueue(
   const todaySet = new Set(todayIds)
   const qById = new Map(questions.map(q => [q.id, q]))
   const totalDays = Math.ceil(plan.question_order.length / plan.per_day)
-  const mode = plan.mode ?? 'strict'
+  const mode = plan.mode ?? 'flex'
   const planComplete = isPlanFullyComplete(plan, progress, repsPerQ, dailyReps)
   const lastDay = getLastPlanDayIndex(plan)
 
@@ -297,8 +276,6 @@ export async function advancePlanDayIfTodayBlockDone(
   progress: Record<string, DailyProgressSlice | undefined>,
   repsPerQ: number,
 ): Promise<{ advanced: boolean; newDayNumber?: number }> {
-  if ((plan.mode ?? 'strict') !== 'flex') return { advanced: false }
-
   const today = todayISOChicago()
   const dailyReps = dailyRepsFromProgress(progress, today)
   const activeDay = getClaimedDayIndex(plan)
