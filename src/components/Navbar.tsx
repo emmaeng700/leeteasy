@@ -10,9 +10,9 @@ import { clearRefreshQueryParam, forceAppRefresh } from '@/lib/forceAppRefresh'
 
 const LINKS = [
   { href: '/grind-offline.html', label: 'Grind', icon: Code2, match: '/grind' },
+  { href: '/leetcode', label: 'LeetCode', icon: Zap, match: '/leetcode' },
   { href: '/daily', label: 'Daily', icon: Calendar, match: '/daily' },
   { href: '/review', label: 'Reviews', icon: Brain, match: '/review' },
-  { href: '/leetcode', label: 'LeetCode', icon: Zap, match: '/leetcode' },
   { href: '/clipboard', label: 'Tokens', icon: Key, match: '/clipboard' },
 ] as const
 
