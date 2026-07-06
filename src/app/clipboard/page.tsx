@@ -8,6 +8,12 @@ import {
 import toast from 'react-hot-toast'
 import { PageShell } from '@/components/Navbar'
 import { persistLcSessionFromPaste } from '@/lib/leetcodeListSync'
+import {
+  clearTokenCleanerDraft,
+  readTokenCleanerDraft,
+  writeLcPasteDraft,
+  writeTokenCleanerDraft,
+} from '@/lib/lcPasteDraft'
 
 interface ClipItem {
   id: number
@@ -38,6 +44,44 @@ function TokenCleaner({ onSaved }: { onSaved: (item: ClipItem) => void }) {
   const [copied, setCopied] = useState(false)
   const [saving, setSaving] = useState(false)
   const [label, setLabel] = useState('LeetCode Session')
+  const [hydrated, setHydrated] = useState(false)
+
+  useEffect(() => {
+    const d = readTokenCleanerDraft()
+    setRaw(d.raw)
+    setCleaned(d.cleaned)
+    setLabel(d.label)
+    setHydrated(true)
+  }, [])
+
+  useEffect(() => {
+    if (!hydrated) return
+    writeTokenCleanerDraft(raw, cleaned, label)
+  }, [raw, cleaned, label, hydrated])
+
+  useEffect(() => {
+    const refresh = () => {
+      const d = readTokenCleanerDraft()
+      setRaw(d.raw)
+      setCleaned(d.cleaned)
+      setLabel(d.label)
+    }
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refresh()
+    }
+    window.addEventListener('pageshow', refresh)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.removeEventListener('pageshow', refresh)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [])
+
+  const setRawAndDraft = (value: string) => {
+    setRaw(value)
+    setCleaned('')
+    writeLcPasteDraft(value, '')
+  }
 
   const handleClean = () => {
     setCleaned(cleanToken(raw))
@@ -67,6 +111,7 @@ function TokenCleaner({ onSaved }: { onSaved: (item: ClipItem) => void }) {
         const applied = await persistLcSessionFromPaste(toSave)
         if (applied.ok) toast.success('Token saved + applied for LeetCode sync')
         else toast.success('Token saved to clipboard')
+        clearTokenCleanerDraft()
         setRaw('')
         setCleaned('')
       } else if (res.status === 409 && d.error === 'duplicate') {
@@ -103,8 +148,8 @@ function TokenCleaner({ onSaved }: { onSaved: (item: ClipItem) => void }) {
 
       <textarea
         value={raw}
-        onChange={e => { setRaw(e.target.value); setCleaned('') }}
-        placeholder="Paste raw LEETCODE_SESSION or cookie header - spaces, newlines, anything-"
+        onChange={e => setRawAndDraft(e.target.value)}
+        placeholder="Paste raw LEETCODE_SESSION or cookie header - spaces, newlines, anything..."
         rows={3}
         className="w-full px-3 py-2 text-[11px] font-mono bg-white border border-orange-200 rounded-xl text-zinc-800 placeholder-zinc-400 focus:outline-none focus:border-orange-400 resize-none"
       />

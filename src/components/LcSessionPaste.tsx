@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Key } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { persistLcSessionFromPaste } from '@/lib/leetcodeListSync'
 import { parseStoredLcSession } from '@/lib/leetcodeHttp'
+import { clearLcPasteDraft, readLcPasteDraft, writeLcPasteDraft } from '@/lib/lcPasteDraft'
 
 type Props = {
   open: boolean
@@ -15,6 +16,36 @@ export default function LcSessionPaste({ open, onSaved }: Props) {
   const [session, setSession] = useState('')
   const [csrf, setCsrf] = useState('')
   const [saving, setSaving] = useState(false)
+  const [hydrated, setHydrated] = useState(false)
+
+  useEffect(() => {
+    const d = readLcPasteDraft()
+    setSession(d.session)
+    setCsrf(d.csrf)
+    setHydrated(true)
+  }, [])
+
+  useEffect(() => {
+    if (!hydrated) return
+    writeLcPasteDraft(session, csrf)
+  }, [session, csrf, hydrated])
+
+  useEffect(() => {
+    const refresh = () => {
+      const d = readLcPasteDraft()
+      setSession(d.session)
+      setCsrf(d.csrf)
+    }
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refresh()
+    }
+    window.addEventListener('pageshow', refresh)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.removeEventListener('pageshow', refresh)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [])
 
   if (!open) return null
 
@@ -23,17 +54,20 @@ export default function LcSessionPaste({ open, onSaved }: Props) {
     try {
       const parsed = parseStoredLcSession(session, csrf)
       if (!parsed.session) {
-        toast.error('Paste LEETCODE_SESSION from leetcode.com (Application → Cookies)')
+        toast.error('Paste LEETCODE_SESSION from leetcode.com (Application -> Cookies)')
         return
       }
 
       const result = await persistLcSessionFromPaste(session, csrf)
       if (!result.ok) {
-        toast.error('Saved locally but Supabase save failed — try Clipboard page')
+        toast.error('Saved locally but Supabase save failed - try Tokens page')
         return
       }
 
-      toast.success('Cookie saved — syncing...')
+      clearLcPasteDraft()
+      setSession('')
+      setCsrf('')
+      toast.success('Cookie saved - syncing...')
       onSaved?.()
     } catch (e) {
       toast.error(String(e))
@@ -49,8 +83,8 @@ export default function LcSessionPaste({ open, onSaved }: Props) {
         LeetCode session (one-time)
       </div>
       <p className="text-xs text-indigo-800/80 mb-3 leading-relaxed">
-        On leetcode.com: DevTools → Application → Cookies → copy <strong>LEETCODE_SESSION</strong>.
-        Or save on desktop via <strong>Clipboard → Tokens</strong> and tap <strong>Use</strong> on your phone.
+        On leetcode.com: DevTools, Application tab, Cookies, copy <strong>LEETCODE_SESSION</strong>.
+        Draft is kept if you switch tabs to copy values. Or use <strong>Tokens</strong> in the nav.
       </p>
       <textarea
         value={session}
@@ -62,7 +96,7 @@ export default function LcSessionPaste({ open, onSaved }: Props) {
       <input
         value={csrf}
         onChange={e => setCsrf(e.target.value)}
-        placeholder="csrftoken (optional — auto-fetched if omitted)"
+        placeholder="csrftoken (optional - auto-fetched if omitted)"
         className="w-full text-xs font-mono rounded-xl border border-indigo-200 bg-white px-3 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
       />
       <button
