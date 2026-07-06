@@ -344,9 +344,19 @@ export async function goToNextPlanDay(
   if (!isTodayPlanBlockDone(plan, progress, repsPerQ)) {
     return { ok: false, error: 'Mark all suggested questions done first' }
   }
-  const chain = await advancePlanDayChain(plan, progress, repsPerQ)
-  if (chain.daysAdvanced < 1) {
+
+  const activeDay = getClaimedDayIndex(plan)
+  const lastDay = getLastPlanDayIndex(plan)
+  if (activeDay >= lastDay) {
     return { ok: false, error: 'Already on the last plan day' }
   }
-  return { ok: true, newDayNumber: chain.finalDayNumber }
+
+  const newClaimed = activeDay + 1
+  const { persistPlanFlex } = await import('./planFlex')
+  await persistPlanFlex(
+    { planStartIndex: plan.planStartIndex ?? 0, claimedDayIndex: newClaimed },
+    plan.per_day,
+  )
+
+  return { ok: true, newDayNumber: newClaimed + 1 }
 }

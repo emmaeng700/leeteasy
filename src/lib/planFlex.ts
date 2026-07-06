@@ -59,8 +59,12 @@ export function extendPlanWithFlex(raw: unknown): FlexStudyPlan | null {
 
   const planStartIndex =
     Number.isFinite(dbStart) && dbStart >= 0 ? dbStart : local.planStartIndex
+  const dbClaimedValid = Number.isFinite(dbClaimed) && dbClaimed >= 0 ? dbClaimed : null
+  // Local can be ahead when DB flex columns are missing or still at default 0.
   const claimedDayIndex =
-    Number.isFinite(dbClaimed) && dbClaimed >= 0 ? dbClaimed : local.claimedDayIndex
+    dbClaimedValid != null
+      ? Math.max(local.claimedDayIndex, dbClaimedValid)
+      : local.claimedDayIndex
 
   return {
     start_date: startDate,
@@ -110,7 +114,8 @@ export async function persistPlanFlex(cfg: PlanFlexConfig, perDay: number): Prom
     const existing = await getStudyPlan()
     if (!existing) return true
     const claimed = clampClaimedDay(cfg.claimedDayIndex, (existing.question_order as number[]).length, perDay)
-    return saveStudyPlan({
+    writePlanFlexLocal({ planStartIndex: cfg.planStartIndex, claimedDayIndex: claimed })
+    void saveStudyPlan({
       start_date: startDateForClaimedDay(claimed),
       per_day: existing.per_day as number,
       question_order: existing.question_order as number[],
@@ -120,6 +125,7 @@ export async function persistPlanFlex(cfg: PlanFlexConfig, perDay: number): Prom
       plan_start_index: cfg.planStartIndex,
       claimed_day_index: claimed,
     })
+    return true
   } catch {
     return true
   }
