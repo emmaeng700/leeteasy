@@ -83,14 +83,14 @@ export default function LcSessionPaste({ open, onSaved }: Props) {
         LeetCode session (one-time)
       </div>
       <p className="text-xs text-indigo-800/80 mb-3 leading-relaxed">
-        On leetcode.com: DevTools, Application tab, Cookies, copy <strong>LEETCODE_SESSION</strong>.
-        Draft is kept if you switch tabs to copy values. Or use <strong>Tokens</strong> in the nav.
+        Paste full cookie: <code className="bg-white/80 px-1 rounded text-[10px]">LEETCODE_SESSION=...; csrftoken=...</code>
+        (add <code className="text-[10px]">cf_clearance</code> if you have it). Or use <strong>Tokens</strong> in the nav.
       </p>
       <textarea
         value={session}
         onChange={e => setSession(e.target.value)}
         rows={3}
-        placeholder="LEETCODE_SESSION=... or full Cookie: header"
+        placeholder="LEETCODE_SESSION=...; csrftoken=...; cf_clearance=..."
         className="w-full text-xs font-mono rounded-xl border border-indigo-200 bg-white p-3 mb-2 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
       />
       <input

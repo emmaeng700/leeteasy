@@ -149,7 +149,7 @@ function TokenCleaner({ onSaved }: { onSaved: (item: ClipItem) => void }) {
       <textarea
         value={raw}
         onChange={e => setRawAndDraft(e.target.value)}
-        placeholder="Paste raw LEETCODE_SESSION or cookie header - spaces, newlines, anything..."
+        placeholder="LEETCODE_SESSION=...; csrftoken=...; cf_clearance=... (full Cookie header)"
         rows={3}
         className="w-full px-3 py-2 text-[11px] font-mono bg-white border border-orange-200 rounded-xl text-zinc-800 placeholder-zinc-400 focus:outline-none focus:border-orange-400 resize-none"
       />
@@ -364,8 +364,9 @@ export default function ClipboardPage() {
   return (
     <PageShell title="Clipboard">
       <p className="text-xs text-zinc-500 mb-5 -mt-2">
-        Paste LeetCode tokens here on desktop - open on your phone, tap <strong>Use</strong>, then sync.
-        Synced across all devices via Supabase.
+        Paste the full Cookie header from leetcode.com (Network tab or DevTools). Example:{' '}
+        <code className="text-[10px] bg-zinc-100 px-1 rounded">LEETCODE_SESSION=...; csrftoken=...; cf_clearance=...</code>
+        {' '}Saved like LeetCodeMR - tap <strong>Use</strong> on phone, then sync on LeetCode.
       </p>
 
       {!tableReady && (
